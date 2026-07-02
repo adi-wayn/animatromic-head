@@ -1,0 +1,4 @@
+Animatronic Skull by Djfx on Thingiverse: https://www.thingiverse.com/thing:2456550
+
+Summary:
+This is a servo driven animatronic skull that I've been working on. Requires 4 standard servos and 5 micro servos (9g HXT900 to be exact). Open/close jaw servo should be extra fast for the best look. Special features:Jaw is designed to swing slightly forward when opening for a much more natural look.  Jaw can rotate left and right as well as open and closeEye motion is linked to require only two servosfull range of neck motionindividually blinking eyelidsrequires some hardware to assemble.ball links for neck:https://hobbyking.com/en_us/ball-and-roller-link-4-8x3x17mm-10pcs-bag.htmlOther hardware/software suggestions:Lynxmotion Ssc‑32u - servo controllerVisual Show Automation (VSA) - animatronic software
