@@ -1,5 +1,5 @@
-#ifndef DRIVER_H
-#define DRIVER_H
+#ifndef PCA9685_DRIVER_H
+#define PCA9685_DRIVER_H
 
 #include <Arduino.h>
 #include <Wire.h>
