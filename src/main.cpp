@@ -1,5 +1,5 @@
 #include <Arduino.h>
-#include "AnimatronicHead.h"
+#include "controllers/AnimatronicHead.h"
 
 AnimatronicHead head;
 
@@ -24,7 +24,9 @@ void cliTask(void *pvParameters) {
   Serial.println("'h': Express Happy");
   Serial.println("'s': Express Sad");
   Serial.println("'t': Express Thinking");
+  Serial.println("'m': Toggle Idle Mode (Micro-movements)");
   Serial.println("'0': Reset to Neutral");
+  Serial.println("-------------------------");
 
   while (true) {
     if (Serial.available()) {
@@ -51,6 +53,7 @@ void cliTask(void *pvParameters) {
         case 'h': Serial.println("Expressing Happy..."); head.expressHappy(); break;
         case 's': Serial.println("Expressing Sad..."); head.expressSad(); break;
         case 't': Serial.println("Expressing Thinking..."); head.expressThinking(); break;
+        case 'm': Serial.println("Toggling Idle Mode..."); head.toggleIdleMode(); break;
         case '0': Serial.println("Resetting to Neutral..."); head.resetToNeutral(); break;
       }
     }
@@ -71,5 +74,7 @@ void setup() {
 }
 
 void loop() {
-  vTaskDelay(pdMS_TO_TICKS(1000));
+  // Continuously update idle micro-movements if enabled
+  head.updateIdleMicroMovements();
+  vTaskDelay(pdMS_TO_TICKS(20)); // ~50Hz update rate
 }

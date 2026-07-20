@@ -1,4 +1,4 @@
-#include "driver.h"
+#include "hardware/PCA9685_Driver.h"
 
 // Instantiate the global driver and mutex
 Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver(0x40);

@@ -2,6 +2,7 @@
 #define ANIMATRONIC_HEAD_H
 
 #include <Arduino.h>
+#include "core/Config.h"
 
 class AnimatronicHead {
 public:
@@ -28,15 +29,21 @@ public:
     void jawLeft();
     void jawRight();
 
-    // --- Emotions / Reactions ---
     void expressHappy();
     void expressSad();
     void expressThinking(); // listenMode
     void resetToNeutral();
+    // --- Idle Mode ---
+    void toggleIdleMode();
+    void updateIdleMicroMovements();
 
 private:
-    // Helper to move a servo smoothly from its CURRENT angle to target
-    void smoothMove(uint8_t channel, double targetAngle, double minLimit, double maxLimit, int durationMs);
+    // Access the current tracker for a given channel
+    double& getTrackedAngle(uint8_t channel);
+
+    // Advanced movement functions
+    void smoothMove(const ServoConfig& config, double targetAngle, int durationMs);
+    void saccadeMove(const ServoConfig& config, double targetAngle, int durationMs);
 
     // Track current angles to prevent snapping
     double currentNeckOne;
@@ -49,8 +56,8 @@ private:
     double currentEyelidLeft;
     double currentEyelidRight;
 
-    // Helper to get a reference to the tracked angle
-    double& getTrackedAngle(uint8_t channel);
+    // --- Idle Mode State ---
+    bool isIdleModeEnabled = false;
 };
 
 #endif // ANIMATRONIC_HEAD_H
