@@ -4,7 +4,7 @@
 #include <Arduino.h>
 
 // Jaw channel on PCA9685
-#define JAW_CHANNEL 5
+#define JAW_CHANNEL 8
 
 // Safety limits for jaw left/right movement (shifted center workaround)
 #define JAW_MIN_ANGLE 85.0

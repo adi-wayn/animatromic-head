@@ -4,7 +4,7 @@
 #include <Arduino.h>
 
 // Eyes X-direction (left/right) channel on PCA9685
-#define EYES_X_CHANNEL 1
+#define EYES_X_CHANNEL 6
 
 // Safety limits for eyes X movement
 #define EYES_X_MIN_ANGLE 50.0

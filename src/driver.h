@@ -11,6 +11,9 @@ extern SemaphoreHandle_t pcaMutex;
 // Global PCA9685 Driver instance
 extern Adafruit_PWMServoDriver pwm;
 
+// Flag to track initialization
+extern bool isDriverInitialized;
+
 // Pin Definitions for I2C
 #define I2C_SDA 21
 #define I2C_SCL 22

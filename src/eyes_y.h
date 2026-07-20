@@ -4,7 +4,7 @@
 #include <Arduino.h>
 
 // Eyes Y-direction (up/down) channel on PCA9685
-#define EYES_Y_CHANNEL 0
+#define EYES_Y_CHANNEL 7
 
 // Safety limits for eyes Y movement
 #define EYES_Y_MIN_ANGLE 80.0
