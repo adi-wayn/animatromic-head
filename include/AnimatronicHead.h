@@ -22,6 +22,12 @@ public:
     void blinkLeft();
     void blink();
 
+    // --- Jaw ---
+    void jawOpen();
+    void jawClose();
+    void jawLeft();
+    void jawRight();
+
     // --- Emotions / Reactions ---
     void expressHappy();
     void expressSad();
@@ -38,7 +44,8 @@ private:
     double currentNeckRoll;
     double currentEyesX;
     double currentEyesY;
-    double currentJaw;
+    double currentJaw;     // Jaw Up/Down
+    double currentJawLR;   // Jaw Left/Right
     double currentEyelidLeft;
     double currentEyelidRight;
 

@@ -17,6 +17,10 @@ void cliTask(void *pvParameters) {
   Serial.println("'r': Blink Right Eyelid");
   Serial.println("'l': Blink Left Eyelid");
   Serial.println("'b': Blink Both Eyelids");
+  Serial.println("'o': Jaw Open");
+  Serial.println("'c': Jaw Close");
+  Serial.println("'x': Jaw Left");
+  Serial.println("'y': Jaw Right");
   Serial.println("'h': Express Happy");
   Serial.println("'s': Express Sad");
   Serial.println("'t': Express Thinking");
@@ -40,6 +44,10 @@ void cliTask(void *pvParameters) {
         case 'r': Serial.println("Blinking Right..."); head.blinkRight(); break;
         case 'l': Serial.println("Blinking Left..."); head.blinkLeft(); break;
         case 'b': Serial.println("Blinking Both..."); head.blink(); break;
+        case 'o': Serial.println("Jaw Opening..."); head.jawOpen(); break;
+        case 'c': Serial.println("Jaw Closing..."); head.jawClose(); break;
+        case 'x': Serial.println("Jaw Left..."); head.jawLeft(); break;
+        case 'y': Serial.println("Jaw Right..."); head.jawRight(); break;
         case 'h': Serial.println("Expressing Happy..."); head.expressHappy(); break;
         case 's': Serial.println("Expressing Sad..."); head.expressSad(); break;
         case 't': Serial.println("Expressing Thinking..."); head.expressThinking(); break;

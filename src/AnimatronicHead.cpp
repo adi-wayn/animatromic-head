@@ -5,6 +5,7 @@
 #include "eyes_x.h"
 #include "eyes_y.h"
 #include "jaw_ud.h"
+#include "jaw.h"
 #include "eyelid_left.h"
 #include "eyelid_right.h"
 #include "neck_roll.h"
@@ -17,6 +18,7 @@ AnimatronicHead::AnimatronicHead() {
     currentEyesX = EYES_X_CENTER_ANGLE;
     currentEyesY = EYES_Y_CENTER_ANGLE;
     currentJaw = JAW_UD_CENTER_ANGLE;
+    currentJawLR = JAW_CENTER_ANGLE;
     currentEyelidLeft = EYELID_LEFT_MIN_ANGLE;
     currentEyelidRight = EYELID_RIGHT_MIN_ANGLE;
 }
@@ -35,6 +37,7 @@ double& AnimatronicHead::getTrackedAngle(uint8_t channel) {
     if (channel == EYES_X_CHANNEL) return currentEyesX;
     if (channel == EYES_Y_CHANNEL) return currentEyesY;
     if (channel == JAW_UD_CHANNEL) return currentJaw;
+    if (channel == JAW_CHANNEL) return currentJawLR;
     if (channel == EYELID_LEFT_CHANNEL) return currentEyelidLeft;
     if (channel == EYELID_RIGHT_CHANNEL) return currentEyelidRight;
     return currentNeckOne; // fallback
@@ -111,6 +114,24 @@ void AnimatronicHead::blink() {
     currentEyelidLeft = EYELID_LEFT_MIN_ANGLE;
 }
 
+// --- Jaw ---
+
+void AnimatronicHead::jawOpen() {
+    smoothMove(JAW_UD_CHANNEL, JAW_UD_MIN_ANGLE, JAW_UD_MIN_ANGLE, JAW_UD_MAX_ANGLE, 300);
+}
+
+void AnimatronicHead::jawClose() {
+    smoothMove(JAW_UD_CHANNEL, JAW_UD_MAX_ANGLE, JAW_UD_MIN_ANGLE, JAW_UD_MAX_ANGLE, 300);
+}
+
+void AnimatronicHead::jawLeft() {
+    smoothMove(JAW_CHANNEL, JAW_MIN_ANGLE, JAW_MIN_ANGLE, JAW_MAX_ANGLE, 300);
+}
+
+void AnimatronicHead::jawRight() {
+    smoothMove(JAW_CHANNEL, JAW_MAX_ANGLE, JAW_MIN_ANGLE, JAW_MAX_ANGLE, 300);
+}
+
 // --- Emotions / Reactions ---
 
 void AnimatronicHead::expressHappy() {
@@ -143,6 +164,7 @@ void AnimatronicHead::resetToNeutral() {
     smoothMove(EYES_X_CHANNEL, EYES_X_CENTER_ANGLE, EYES_X_MIN_ANGLE, EYES_X_MAX_ANGLE, 500);
     smoothMove(EYES_Y_CHANNEL, EYES_Y_CENTER_ANGLE, EYES_Y_MIN_ANGLE, EYES_Y_MAX_ANGLE, 500);
     smoothMove(JAW_UD_CHANNEL, JAW_UD_CENTER_ANGLE, JAW_UD_MIN_ANGLE, JAW_UD_MAX_ANGLE, 500);
+    smoothMove(JAW_CHANNEL, JAW_CENTER_ANGLE, JAW_MIN_ANGLE, JAW_MAX_ANGLE, 500);
     smoothMove(EYELID_LEFT_CHANNEL, EYELID_LEFT_MIN_ANGLE, EYELID_LEFT_MIN_ANGLE, EYELID_LEFT_MAX_ANGLE, 300);
     smoothMove(EYELID_RIGHT_CHANNEL, EYELID_RIGHT_MIN_ANGLE, EYELID_RIGHT_MIN_ANGLE, EYELID_RIGHT_MAX_ANGLE, 300);
 }

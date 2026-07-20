@@ -8,7 +8,7 @@
 
 // Safety limits for eyelid left
 #define EYELID_LEFT_MIN_ANGLE 40.0
-#define EYELID_LEFT_MAX_ANGLE 180.0
+#define EYELID_LEFT_MAX_ANGLE 200.0 // Increased from 180 to help the eye close completely
 #define EYELID_LEFT_CENTER_ANGLE 90.0
 
 // Eyelid left control task
