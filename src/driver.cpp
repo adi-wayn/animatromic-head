@@ -3,6 +3,7 @@
 // Instantiate the global driver and mutex
 Adafruit_PWMServoDriver pwm = Adafruit_PWMServoDriver(0x40);
 SemaphoreHandle_t pcaMutex = NULL;
+bool isDriverInitialized = false;
 
 void initDriver() {
   // Create the mutex to prevent concurrent I2C writes
@@ -18,10 +19,16 @@ void initDriver() {
   pwm.begin();
   pwm.setOscillatorFrequency(27000000);
   pwm.setPWMFreq(SERVO_FREQ);
+  isDriverInitialized = true;
 }
 
 // Convert angle to PWM ticks and write to PCA9685 under Mutex protection
 bool safeSetServoAngle(uint8_t channel, double angle, double minAngle, double maxAngle) {
+  if (!isDriverInitialized) {
+    Serial.println("[ERROR] PCA9685 Driver not initialized! Cannot move servos.");
+    return false;
+  }
+
   // 1. Safety Clamping
   double clampedAngle = angle;
   if (clampedAngle < minAngle) {
@@ -52,6 +59,8 @@ bool safeSetServoAngle(uint8_t channel, double angle, double minAngle, double ma
 }
 
 void detachServo(uint8_t channel) {
+  if (!isDriverInitialized) return;
+
   if (pcaMutex != NULL) {
     if (xSemaphoreTake(pcaMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
       pwm.setPWM(channel, 0, 0); // Stops sending PWM pulses

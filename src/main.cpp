@@ -1,165 +1,65 @@
 #include <Arduino.h>
-#include "driver.h"
-#include "neck_y.h"
-#include "jaw_ud.h"
-#include "neck_one.h"
+#include "AnimatronicHead.h"
 
-// Sequential orchestration task to test Channel 0, 1, and 3 safely
-void sequentialServoTestTask(void *pvParameters) {
+AnimatronicHead head;
+
+void cliTask(void *pvParameters) {
   (void) pvParameters;
-
-  double yAngle = NECK_Y_CENTER_ANGLE;
-  double jawAngle = JAW_UD_CENTER_ANGLE;
-  double oneAngle = NECK_ONE_CENTER_ANGLE;
-
-  const TickType_t stepDelay = pdMS_TO_TICKS(35); // Slow and gentle 35ms steps
+  
+  Serial.println("CLI Test Ready. Press:");
+  Serial.println("'i': Initialize PCA9685 Driver (DO THIS FIRST)");
+  Serial.println("'1': Look Left");
+  Serial.println("'2': Look Right");
+  Serial.println("'3': Look Up");
+  Serial.println("'4': Look Down");
+  Serial.println("'5': Tilt Right");
+  Serial.println("'6': Tilt Left");
+  Serial.println("'r': Blink Right Eyelid");
+  Serial.println("'l': Blink Left Eyelid");
+  Serial.println("'b': Blink Both Eyelids");
+  Serial.println("'h': Express Happy");
+  Serial.println("'s': Express Sad");
+  Serial.println("'t': Express Thinking");
+  Serial.println("'0': Reset to Neutral");
 
   while (true) {
-    // Reset positions to center constants at the start of each cycle
-    yAngle = NECK_Y_CENTER_ANGLE;     // 110.0
-    jawAngle = JAW_UD_CENTER_ANGLE;   // 90.0
-    oneAngle = NECK_ONE_CENTER_ANGLE; // 70.0
-
-    // 1. Energize Neck Y and Neck One to their centers to hold the head up and aligned
-    Serial.println("\n[SEQUENTIAL TEST] Holding Neck Y and Neck One at center...");
-    safeSetServoAngle(NECK_Y_CHANNEL, yAngle, NECK_Y_MIN_ANGLE, NECK_Y_MAX_ANGLE);
-    safeSetServoAngle(NECK_ONE_CHANNEL, oneAngle, NECK_ONE_MIN_ANGLE, NECK_ONE_MAX_ANGLE);
-    vTaskDelay(pdMS_TO_TICKS(1500)); // Give them 1.5 seconds to stabilize and take load
-
-    // === 1. NECK Y SWEEP (Channel 0) ===
-    Serial.println("\n[SEQUENTIAL TEST] Step 1: Sweeping Neck Y (CH0)...");
-    
-    // Sweep Right/Down
-    while (yAngle < NECK_Y_MAX_ANGLE) {
-      yAngle += 1.0;
-      safeSetServoAngle(NECK_Y_CHANNEL, yAngle, NECK_Y_MIN_ANGLE, NECK_Y_MAX_ANGLE);
-      vTaskDelay(stepDelay);
+    if (Serial.available()) {
+      char c = Serial.read();
+      switch(c) {
+        case 'i': 
+            Serial.println("Initializing PCA9685 Driver..."); 
+            head.begin(); 
+            Serial.println("Driver initialized! Now you can move servos."); 
+            break;
+        case '1': Serial.println("Looking Left..."); head.lookLeft(); break;
+        case '2': Serial.println("Looking Right..."); head.lookRight(); break;
+        case '3': Serial.println("Looking Up..."); head.lookUp(); break;
+        case '4': Serial.println("Looking Down..."); head.lookDown(); break;
+        case '5': Serial.println("Tilting Right..."); head.tiltRight(); break;
+        case '6': Serial.println("Tilting Left..."); head.tiltLeft(); break;
+        case 'r': Serial.println("Blinking Right..."); head.blinkRight(); break;
+        case 'l': Serial.println("Blinking Left..."); head.blinkLeft(); break;
+        case 'b': Serial.println("Blinking Both..."); head.blink(); break;
+        case 'h': Serial.println("Expressing Happy..."); head.expressHappy(); break;
+        case 's': Serial.println("Expressing Sad..."); head.expressSad(); break;
+        case 't': Serial.println("Expressing Thinking..."); head.expressThinking(); break;
+        case '0': Serial.println("Resetting to Neutral..."); head.resetToNeutral(); break;
+      }
     }
-    vTaskDelay(pdMS_TO_TICKS(500));
-
-    // Sweep Left/Up
-    while (yAngle > NECK_Y_MIN_ANGLE) {
-      yAngle -= 1.0;
-      safeSetServoAngle(NECK_Y_CHANNEL, yAngle, NECK_Y_MIN_ANGLE, NECK_Y_MAX_ANGLE);
-      vTaskDelay(stepDelay);
-    }
-    vTaskDelay(pdMS_TO_TICKS(500));
-
-    // Return to Center
-    while (yAngle < NECK_Y_CENTER_ANGLE) {
-      yAngle += 1.0;
-      safeSetServoAngle(NECK_Y_CHANNEL, yAngle, NECK_Y_MIN_ANGLE, NECK_Y_MAX_ANGLE);
-      vTaskDelay(stepDelay);
-    }
-    
-    // Note: Do NOT detach Neck Y! Keep it active to hold the head up.
-    Serial.println("[SEQUENTIAL TEST] Neck Y finished sweep. Holding center position.");
-    vTaskDelay(pdMS_TO_TICKS(1000));
-
-    // === 2. NECK ONE SWEEP (Channel 3) ===
-    Serial.println("\n[SEQUENTIAL TEST] Step 2: Sweeping Neck One (CH3)...");
-    
-    // Sweep Right/Down
-    while (oneAngle < NECK_ONE_MAX_ANGLE) {
-      oneAngle += 1.0;
-      safeSetServoAngle(NECK_ONE_CHANNEL, oneAngle, NECK_ONE_MIN_ANGLE, NECK_ONE_MAX_ANGLE);
-      vTaskDelay(stepDelay);
-    }
-    vTaskDelay(pdMS_TO_TICKS(500));
-
-    // Sweep Left/Up
-    while (oneAngle > NECK_ONE_MIN_ANGLE) {
-      oneAngle -= 1.0;
-      safeSetServoAngle(NECK_ONE_CHANNEL, oneAngle, NECK_ONE_MIN_ANGLE, NECK_ONE_MAX_ANGLE);
-      vTaskDelay(stepDelay);
-    }
-    vTaskDelay(pdMS_TO_TICKS(500));
-
-    // Return to Center
-    while (oneAngle < NECK_ONE_CENTER_ANGLE) {
-      oneAngle += 1.0;
-      safeSetServoAngle(NECK_ONE_CHANNEL, oneAngle, NECK_ONE_MIN_ANGLE, NECK_ONE_MAX_ANGLE);
-      vTaskDelay(stepDelay);
-    }
-    
-    // Note: Do NOT detach Neck One! Keep it active to hold left/right alignment.
-    Serial.println("[SEQUENTIAL TEST] Neck One finished sweep. Holding center position.");
-    vTaskDelay(pdMS_TO_TICKS(1000));
-
-    // === 3. JAW UP/DOWN SWEEP (Channel 1) ===
-    // Neck Y and Neck One are currently active and holding the head up and aligned!
-    Serial.println("\n[SEQUENTIAL TEST] Step 3: Sweeping Jaw Up/Down (CH1)...");
-    
-    // Open Mouth (Decrease angle to open jaw physically)
-    while (jawAngle > JAW_UD_MIN_ANGLE) {
-      jawAngle -= 1.5;
-      if (jawAngle < JAW_UD_MIN_ANGLE) jawAngle = JAW_UD_MIN_ANGLE;
-      safeSetServoAngle(JAW_UD_CHANNEL, jawAngle, JAW_UD_MIN_ANGLE, JAW_UD_MAX_ANGLE);
-      vTaskDelay(stepDelay);
-    }
-    vTaskDelay(pdMS_TO_TICKS(1000)); // Hold open
-
-    // Close Mouth (Increase angle to close jaw physically)
-    while (jawAngle < JAW_UD_MAX_ANGLE) {
-      jawAngle += 1.5;
-      if (jawAngle > JAW_UD_MAX_ANGLE) jawAngle = JAW_UD_MAX_ANGLE;
-      safeSetServoAngle(JAW_UD_CHANNEL, jawAngle, JAW_UD_MIN_ANGLE, JAW_UD_MAX_ANGLE);
-      vTaskDelay(stepDelay);
-    }
-    
-    // Detach Jaw to relax it
-    detachServo(JAW_UD_CHANNEL);
-    Serial.println("[SEQUENTIAL TEST] Jaw Up/Down finished and detached.");
-    
-    // === 4. RELAX NECK SERVOS FOR COOLDOWN ===
-    // Detach Neck Y and Neck One now that the active cycle is complete
-    detachServo(NECK_Y_CHANNEL);
-    detachServo(NECK_ONE_CHANNEL);
-    Serial.println("[SEQUENTIAL TEST] Neck Y and Neck One detached for cooldown.");
-    
-    Serial.println("\n[SEQUENTIAL TEST] Cycle complete. Resting for 5 seconds...");
-    vTaskDelay(pdMS_TO_TICKS(5000));
+    vTaskDelay(pdMS_TO_TICKS(50)); 
   }
 }
 
 void setup() {
   Serial.begin(115200);
-  while (!Serial) {
-    delay(10); // Wait for serial monitor connection
-  }
-  Serial.println("==================================================");
-  Serial.println("ESP32 Sequential Multi-Servo Safety Test");
-  Serial.println("CH0: Neck Y | CH1: Jaw Up/Down | CH3: Neck One");
-  Serial.println("==================================================");
+  while (!Serial) { delay(10); }
 
-  // Initialize PCA9685 driver and setup I2C bus
-  initDriver();
-  Serial.println("PCA9685 Driver initialized successfully.");
+  Serial.println("\n\n-----------------------------------");
+  Serial.println("SYSTEM BOOTED SUCCESSFULLY! (115200 Baud)");
+  Serial.println("PCA9685 IS CURRENTLY OFF (Not Initialized).");
+  Serial.println("-----------------------------------\n");
 
-  Serial.println("=== INITIAL START: CENTERING ALL SERVOS ===");
-  safeSetServoAngle(NECK_Y_CHANNEL, NECK_Y_CENTER_ANGLE, NECK_Y_MIN_ANGLE, NECK_Y_MAX_ANGLE);
-  safeSetServoAngle(JAW_UD_CHANNEL, JAW_UD_CENTER_ANGLE, JAW_UD_MIN_ANGLE, JAW_UD_MAX_ANGLE);
-  safeSetServoAngle(NECK_ONE_CHANNEL, NECK_ONE_CENTER_ANGLE, NECK_ONE_MIN_ANGLE, NECK_ONE_MAX_ANGLE);
-  
-  delay(1500); // Give servos time to reach center
-  
-  // Detach all servos to rest and save power
-  detachServo(NECK_Y_CHANNEL);
-  detachServo(JAW_UD_CHANNEL);
-  detachServo(NECK_ONE_CHANNEL);
-  Serial.println("All servos centered and detached. Starting loop.");
-
-  // Spawn sequential test task on Core 1
-  xTaskCreatePinnedToCore(
-    sequentialServoTestTask,
-    "SequentialServoTestTask",
-    4096,
-    NULL,
-    1,
-    NULL,
-    1
-  );
-  Serial.println("SequentialServoTestTask spawned on Core 1.");
+  xTaskCreatePinnedToCore(cliTask, "CLITask", 4096, NULL, 1, NULL, 1);
 }
 
 void loop() {

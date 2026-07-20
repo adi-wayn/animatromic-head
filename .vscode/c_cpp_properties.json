@@ -8,10 +8,10 @@
         {
             "name": "PlatformIO",
             "includePath": [
-                "/Users/testmac/Library/Mobile Documents/com~apple~CloudDocs/לימודים באריאל/שנה ג׳ תשפו/סמסטר ב׳/מיקרו מעבדים/animatromic head test/include",
-                "/Users/testmac/Library/Mobile Documents/com~apple~CloudDocs/לימודים באריאל/שנה ג׳ תשפו/סמסטר ב׳/מיקרו מעבדים/animatromic head test/src",
-                "/Users/testmac/Library/Mobile Documents/com~apple~CloudDocs/לימודים באריאל/שנה ג׳ תשפו/סמסטר ב׳/מיקרו מעבדים/animatromic head test/.pio/libdeps/esp32dev/Adafruit PWM Servo Driver Library",
-                "/Users/testmac/Library/Mobile Documents/com~apple~CloudDocs/לימודים באריאל/שנה ג׳ תשפו/סמסטר ב׳/מיקרו מעבדים/animatromic head test/.pio/libdeps/esp32dev/Adafruit BusIO",
+                "/Users/testmac/Library/Mobile Documents/com~apple~CloudDocs/לימודים באריאל/שנה ג׳ תשפו/סמסטר ב׳/מיקרו מעבדים/animatromic head/include",
+                "/Users/testmac/Library/Mobile Documents/com~apple~CloudDocs/לימודים באריאל/שנה ג׳ תשפו/סמסטר ב׳/מיקרו מעבדים/animatromic head/src",
+                "/Users/testmac/Library/Mobile Documents/com~apple~CloudDocs/לימודים באריאל/שנה ג׳ תשפו/סמסטר ב׳/מיקרו מעבדים/animatromic head/.pio/libdeps/esp32dev/Adafruit PWM Servo Driver Library",
+                "/Users/testmac/Library/Mobile Documents/com~apple~CloudDocs/לימודים באריאל/שנה ג׳ תשפו/סמסטר ב׳/מיקרו מעבדים/animatromic head/.pio/libdeps/esp32dev/Adafruit BusIO",
                 "/Users/testmac/.platformio/packages/framework-arduinoespressif32/libraries/SPI/src",
                 "/Users/testmac/.platformio/packages/framework-arduinoespressif32/libraries/Wire/src",
                 "/Users/testmac/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/include/newlib/platform_include",
@@ -246,10 +246,10 @@
             "browse": {
                 "limitSymbolsToIncludedHeaders": true,
                 "path": [
-                    "/Users/testmac/Library/Mobile Documents/com~apple~CloudDocs/לימודים באריאל/שנה ג׳ תשפו/סמסטר ב׳/מיקרו מעבדים/animatromic head test/include",
-                    "/Users/testmac/Library/Mobile Documents/com~apple~CloudDocs/לימודים באריאל/שנה ג׳ תשפו/סמסטר ב׳/מיקרו מעבדים/animatromic head test/src",
-                    "/Users/testmac/Library/Mobile Documents/com~apple~CloudDocs/לימודים באריאל/שנה ג׳ תשפו/סמסטר ב׳/מיקרו מעבדים/animatromic head test/.pio/libdeps/esp32dev/Adafruit PWM Servo Driver Library",
-                    "/Users/testmac/Library/Mobile Documents/com~apple~CloudDocs/לימודים באריאל/שנה ג׳ תשפו/סמסטר ב׳/מיקרו מעבדים/animatromic head test/.pio/libdeps/esp32dev/Adafruit BusIO",
+                    "/Users/testmac/Library/Mobile Documents/com~apple~CloudDocs/לימודים באריאל/שנה ג׳ תשפו/סמסטר ב׳/מיקרו מעבדים/animatromic head/include",
+                    "/Users/testmac/Library/Mobile Documents/com~apple~CloudDocs/לימודים באריאל/שנה ג׳ תשפו/סמסטר ב׳/מיקרו מעבדים/animatromic head/src",
+                    "/Users/testmac/Library/Mobile Documents/com~apple~CloudDocs/לימודים באריאל/שנה ג׳ תשפו/סמסטר ב׳/מיקרו מעבדים/animatromic head/.pio/libdeps/esp32dev/Adafruit PWM Servo Driver Library",
+                    "/Users/testmac/Library/Mobile Documents/com~apple~CloudDocs/לימודים באריאל/שנה ג׳ תשפו/סמסטר ב׳/מיקרו מעבדים/animatromic head/.pio/libdeps/esp32dev/Adafruit BusIO",
                     "/Users/testmac/.platformio/packages/framework-arduinoespressif32/libraries/SPI/src",
                     "/Users/testmac/.platformio/packages/framework-arduinoespressif32/libraries/Wire/src",
                     "/Users/testmac/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/include/newlib/platform_include",
