@@ -20,17 +20,17 @@ Due to pending physical audio hardware (INMP441 and MAX98357A), the development 
 ### Phase 1: Environment & Foundation
 **Goal:** Establish safe, reliable development environments that protect the physical hardware from power surges.
 
-- [ ] **Task 1.1: Edge Environment Setup [Software]**
+- [x] **Task 1.1: Edge Environment Setup [Software]**
   - Initialize the PlatformIO project (`espressif32`, `arduino` framework).
   - Setup `<freertos/FreeRTOS.h>` task pinning structures.
   - Setup basic Serial logging (115200 baud).
 
-- [ ] **Task 1.2: Host Environment Setup [Software]**
+- [x] **Task 1.2: Host Environment Setup [Software]**
   - Initialize the Python environment using `uv`.
   - Set up the `asyncio` event loop structure.
   - Setup `logging` architecture for debug visibility.
 
-- [ ] **Task 1.3: Servo Safety & Boot Staggering [Both]**
+- [x] **Task 1.3: Servo Safety & Boot Staggering [Both]**
   - Create `Config.h` defining mechanical PWM boundaries for all 9 servos.
   - Write ESP32 initialization sequence to power up PCA9685 servos in a staggered manner (e.g., 500ms delay between each).
   - **CRITICAL:** Ensure 10A power supply does not brownout the 3.3V logic during boot.
