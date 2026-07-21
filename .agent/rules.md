@@ -1,37 +1,26 @@
 # Project Development Rules & Workflows
 
-This document establishes the programming guidelines, architecture requirements, and hardware safety constraints for the ESP32 Animatronic Head controller.
+**ATTENTION AI AGENT:** These rules are strict boundaries. Do not violate them.
 
-## 1. Development & Build System
-* **Build System:** PlatformIO (VS Code).
-* **Target Framework:** Arduino Framework for ESP32.
-* **Libraries:**
-  * Use the official `Adafruit PWM Servo Driver Library` for PCA9685 control.
-  * Ensure `Wire.h` and `Adafruit_PWMServoDriver.h` are correctly referenced in the code and added to `lib_deps` in `platformio.ini`.
-* **I2C Setup:** Explicitly initialize the I2C bus with `Wire.begin(SDA_PIN, SCL_PIN)` where default SDA = 21, SCL = 22.
+## 1. Dual-Tier Architecture Rules
+This project uses a split architecture:
+*   **Edge (ESP32):** Handles deterministic kinematics and I2S audio routing. Uses **PlatformIO (Arduino + ESP-IDF)**.
+*   **Host (Python):** Handles all heavy AI computation (VAD, STT, LLM, TTS). Uses the **`uv` package manager**.
+*   **Constraint:** The ESP32 MUST NOT run any AI models locally due to SRAM limits.
 
-## 2. Code Architecture & FreeRTOS
-* **Task Allocation:**
-  * Place servo motion and coordination logic inside a dedicated FreeRTOS task running on **Core 1** to leave Core 0 open for communication or system routines.
-  * Avoid any blocking delay functions (`delay()`) inside tasks; use FreeRTOS-friendly delays: `vTaskDelay(pdMS_TO_TICKS(ms))`.
-* **Resource Sharing:**
-  * If multiple tasks access the PCA9685 driver instance, protect the instance using a FreeRTOS Mutex (`SemaphoreHandle_t`).
+## 2. Hardware Safety & Kinematics (ESP32)
+*   **Deterministic Authority:** The Python LLM is non-deterministic and can only output *abstract intents* (e.g., `{"emotion": "SAD"}`). The ESP32 holds the `PoseDictionary` and translates intents into mathematically safe PWM angles.
+*   **Power Management:** The 10A power supply can brownout the ESP32 3.3V logic if all 9 servos initialize at once. **You must stage/stagger servo initialization upon boot.**
+*   **Jaw Restraints:** The Jaw L/R (Left/Right) servo has a known physical binding defect. Do not rely heavily on lateral jaw movement; clamp its PWM boundaries tightly and blend it into other major expressions.
+*   **Right Eyelid Defect:** The right eyelid servo experiences slipping. Mathematically mirror or blend its movements with the left eyelid rather than moving it independently.
 
-## 3. Critical Safety & Movement Constraints
-To protect the 3D-printed gears and the SG90 micro-servo motor from mechanical clashing and overheating:
-* **Bottom Jaw Left/Right Servo (Channel 0):**
-  * **Center Position:** 90°
-  * **Safe Range:** **60° to 120°** (Strictly limit motion to ±30° from center).
-  * **Teeth Clashing Warning:** Going beyond 60° (left) or 120° (right) will cause the teeth of the bottom jaw to clash with the top jaw.
-* **Angle Enforcer Function:** All writes to the servo must pass through an angle-constraining function. Direct raw PWM pulses should never be sent without range clamping:
-  ```cpp
-  double clampAngle(double angle) {
-      if (angle < 60.0) return 60.0;
-      if (angle > 120.0) return 120.0;
-      return angle;
-  }
-  ```
+## 3. Real-Time Concurrency (FreeRTOS)
+*   **Task Pinning:** 
+    *   **Core 0 (High Priority):** Reserved exclusively for Wi-Fi, UDP streams, and I2S Audio DMA. Never block this core.
+    *   **Core 1 (Medium Priority):** Reserved for JSON parsing, kinematic calculations, and I2C PCA9685 commands.
+*   **No Blocking:** Never use `delay()` in FreeRTOS tasks. Use `vTaskDelay(pdMS_TO_TICKS(ms))`.
 
-## 4. Current & Power Management
-* **Velocity Limiting:** Move the servo incrementally (e.g. step sizes of 1.0° or 2.0°) with small delay slices (e.g. 15ms) rather than jumping instantly to target positions. This prevents inductive current spikes that could exceed the 2.1A supply rating.
-* **Frequency:** The PCA9685 PWM frequency must be configured to `50Hz` (standard for SG90 and HX5010 analog servos).
+## 4. Audio Pipeline Protocol
+*   **Protocol:** All audio streams between Edge and Host use **Unencrypted UDP** over local Wi-Fi to prioritize latency over packet safety. Do not implement TCP overhead.
+*   **Latency SLA:** Total conversational turnaround (STT -> LLM -> TTS) must not exceed 3.0 seconds on average.
+*   **Interruption:** If the Host VAD detects user speech, it must immediately send an `EMERGENCY_STOP` JSON command to the ESP32.

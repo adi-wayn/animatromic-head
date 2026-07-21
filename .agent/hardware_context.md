@@ -1,58 +1,30 @@
-# Hardware Specifications & Wiring Guide
+# Hardware Context & Specifications
 
-This document maintains the hardware configuration and interface mappings for the ESP32 Animatronic Head control system.
+**ATTENTION AI AGENT:** This file documents the current physical state of the hardware.
 
 ## 1. System Components
+*   **Edge Controller:** ESP32 Development Board.
+*   **Host Controller:** Local PC running Python (`uv`).
+*   **Servo Driver:** PCA9685 16-Channel 12-Bit PWM Driver (I2C Address `0x40`).
+*   **Power Supply:** 5V 10A AC/DC Adapter (Wired to PCA9685 green terminal block). The ESP32 logic is isolated from the 10A servo bus.
 
-### Microcontroller (The Brain)
-* **Model:** ESP32 Development Board.
-* **Power Source:** Powered via micro-USB connected to development PC/Mac.
-* **Communication Interface:** I2C protocol.
+## 2. The 9-Servo Topology
+1.  **Neck/Platform:** 3x MG945 High-Torque Metal Gear Servos.
+2.  **Head Alignment:** 1x HX5010 Large Standard Servo.
+3.  **Jaw (Speaking):** 2x SG90 Micro Servos (Up/Down and Left/Right).
+4.  **Eyes & Face:** 3x SG90 Micro Servos (Yaw/Pitch vectors and Eyelids).
 
-### PCA9685 16-Channel 12-Bit PWM Driver
-* **I2C Address:** `0x40` (Default).
-* **Clock Reference:** Standard internal oscillator runs at `27000000` (27 MHz).
-* **Power Input (Green Terminal Block):** 5V DC from the *Comtive Cube USB Adapter* via a custom-stripped USB cable.
-* **Voltage Smoothing Capacitor:** A **1000 μF** electrolytic capacitor is connected across the PCA9685's green terminal block power rails to absorb peak inductive currents and prevent voltage sags.
+## 3. Audio Modules (I2S Peripherals)
+> [!WARNING] 
+> **Current Status:** The INMP441 and MAX98357A are *currently missing* from the physical build. The software roadmap dictates we mock the Host AI pipeline locally before integrating these hardware pieces.
 
-### Actuators / Servos (Total: 9 Servos)
-* **Neck Base Platform:** 3× **MG945** High-Torque Metal Gear Servos.
-* **Head Alignment / Stabilization:** 1× **HX5010** Large Standard Servo positioned at the top of the head (utilizes a wired iron mechanism to keep the head aligned).
-* **Jaw / Speech Mechanism:** 2× **SG90** Micro Servos (one for the top jaw, one for the bottom jaw).
-  * *Current Test Scope:* Only the SG90 micro-servo moving the bottom jaw left and right is connected.
-* **Eyes & Face Expressions:** 3× **SG90** Micro Servos (eyes yaw/pitch and eyelids blink).
+*   **Microphone (Ears):** INMP441 Omnidirectional Digital I2S Mic.
+    *   *To be wired to ESP32 I2S0 peripheral.*
+*   **Amplifier (Voice):** MAX98357A I2S Class-D Amplifier.
+    *   *To be wired to ESP32 I2S1 peripheral.*
+*   **Speaker:** 4Ω 4311 Mid-Range Cone.
+    *   *Wired directly to the MAX98357A output terminals.*
 
----
-
-## 2. Pin and Channel Mapping
-
-### A. ESP32 to PCA9685 I2C Wiring
-| PCA9685 Pin | ESP32 Pin | Wire Function | Notes |
-| :--- | :--- | :--- | :--- |
-| **GND** | **GND** | Ground | Common Ground Reference |
-| **VCC** | **3V3** | Logic Power | Logic power for PCA9685 chip |
-| **SDA** | **GPIO 21 (D21)**| I2C Data | Serial Data Line |
-| **SCL** | **GPIO 22 (D22)**| I2C Clock | Serial Clock Line |
-
-### B. PCA9685 Power Bus
-| Terminal Port | Source Wire (USB-A Stripped) | Electrical Details |
-| :--- | :--- | :--- |
-| **V+ / Plus** | **Red Wire** | +5V DC from Comtive Wall Adapter |
-| **GND / Minus** | **Black Wire** | Return Ground to Comtive Wall Adapter |
-
-### C. PCA9685 Output Channels
-| Channel | Actuator Description | Servo Model | Operating Range (Degrees) | Pulse Limits (μs) |
-| :---: | :--- | :---: | :---: | :---: |
-| **0** | **Neck Y-Axis (Pitch)** | MG995 | **50° to 90°** (Center: 70°) | 500 - 2400 |
-| **1** | **Jaw Up/Down (Speaking)** | HX5010 | **40° to 90°** (Center: 90°) | 500 - 2400 |
-| **3** | **Neck One (Bottom Left/Right)** | MG995 | **80° to 140°** (Center: 110°) | 500 - 2400 |
-| **4** | **Eyelids (Open/Close)** | SG90 | **40° to 180°** (Open: 40°) | 500 - 2400 |
-| **5** | **Bottom Jaw (Left/Right)** | SG90 | **85° to 135°** (Center: 110°) | 500 - 2400 |
-
----
-
-## 3. Power Metrics & Constraints
-* **Comtive Cube Adapter Output:** 5V DC, 2.1A (max continuous load).
-* **SG90 Micro Servo Current Draw:** ~100mA idle, ~500mA peak under movement.
-* **1000 μF Capacitor:** Acts as a local reservoir to supply peak startup current, reducing the chance of triggering an ESP32 brownout.
-* **Software Staggering:** Despite the capacitor, avoid simultaneous step commands to multiple channels if more servos are connected in future stages.
+## 4. Known Hardware Limitations
+*   The ESP32 possesses exactly **two** I2S peripherals. Both are saturated by the Mic and Amplifier. No further I2S hardware can be added.
+*   The mechanical 3D-printed gears are fragile. All software must enforce strict `Config.h` boundary limits to prevent stripping.
