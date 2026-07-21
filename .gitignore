@@ -1,1 +1,15 @@
-.pio
+# PlatformIO
+.pio/
+.vscode/
+
+# Python Host
+.venv/
+__pycache__/
+*.pyc
+.env
+
+# MacOS
+.DS_Store
+
+# Agent/IDE Logs
+.gemini/
