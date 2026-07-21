@@ -1,8 +1,11 @@
 #include <Arduino.h>
 #include "controllers/AnimatronicHead.h"
 #include "hardware/PCA9685_Driver.h"
+#include "controllers/NetworkManager.h"
+#include <ArduinoJson.h>
 
 AnimatronicHead head;
+NetworkManager network;
 bool isFullyBooted = false;
 
 void kinematicsTask(void *pvParameters) {
@@ -45,6 +48,42 @@ void staggeredBootTask(void *pvParameters) {
   vTaskDelete(NULL);
 }
 
+// --- Service 1: Network Transport (Core 0, High Priority) ---
+void networkTask(void *pvParameters) {
+  (void) pvParameters;
+  network.begin();
+  while (true) {
+    network.update();
+    vTaskDelay(pdMS_TO_TICKS(5));
+  }
+}
+
+// --- Service 2: Protocol Dispatcher (Core 1, Medium Priority) ---
+void jsonParserTask(void *pvParameters) {
+  (void) pvParameters;
+  String incomingJson;
+  while (true) {
+    if (isFullyBooted && network.getNextMessage(incomingJson)) {
+      JsonDocument doc;
+      DeserializationError error = deserializeJson(doc, incomingJson);
+      
+      if (!error) {
+        if (doc.containsKey("command") && strcmp(doc["command"], "EMERGENCY_STOP") == 0) {
+          head.setState(SystemState::INTERRUPTED);
+          Serial.println("[Dispatcher] State Changed: INTERRUPTED");
+        }
+        else if (doc.containsKey("cognitive_state")) {
+          head.setState(SystemState::SPEAKING_SYNCING);
+          Serial.println("[Dispatcher] State Changed: SPEAKING_SYNCING");
+        }
+      } else {
+        Serial.printf("[Dispatcher] JSON Parse Error: %s\n", error.c_str());
+      }
+    }
+    vTaskDelay(pdMS_TO_TICKS(20));
+  }
+}
+
 void setup() {
   Serial.begin(115200);
   while (!Serial) { delay(10); }
@@ -53,9 +92,16 @@ void setup() {
   Serial.println("SYSTEM BOOTING... (115200 Baud)");
   Serial.println("-----------------------------------\n");
 
-  // Create Kinematics state machine task (runs forever on Core 1)
-  xTaskCreatePinnedToCore(kinematicsTask, "Kinematics", 4096, NULL, 1, NULL, 1);
+  // Initialize Isolated Services
+  // Kinematic Service (Core 1)
+  xTaskCreatePinnedToCore(kinematicsTask, "Kinematics", 4096, NULL, 5, NULL, 1);
   
+  // Protocol Dispatcher Service (Core 1)
+  xTaskCreatePinnedToCore(jsonParserTask, "JSON_Parser", 4096, NULL, 10, NULL, 1);
+  
+  // Network Transport Service (Core 0)
+  xTaskCreatePinnedToCore(networkTask, "Network", 4096, NULL, 20, NULL, 0);
+
   // Create Staggered Boot task (runs once on Core 1, then deletes itself)
   xTaskCreatePinnedToCore(staggeredBootTask, "Boot", 4096, NULL, 2, NULL, 1);
 }

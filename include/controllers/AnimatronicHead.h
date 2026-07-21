@@ -19,6 +19,12 @@ struct ServoState {
     bool isMoving;
 };
 
+enum class SystemState {
+    IDLE_LISTENING,
+    SPEAKING_SYNCING,
+    INTERRUPTED
+};
+
 class AnimatronicHead {
 public:
     AnimatronicHead();
@@ -56,6 +62,9 @@ public:
     // This MUST be called continuously (~60Hz) in the Core 1 FreeRTOS loop
     void updateKinematics();
 
+    SystemState getState() const { return currentState; }
+    void setState(SystemState newState) { currentState = newState; }
+
 private:
     void triggerMove(const ServoConfig& config, double targetAngle, int durationMs, EasingType easingType);
     
@@ -64,6 +73,8 @@ private:
 
     // --- Idle Mode State ---
     bool isIdleModeEnabled = false;
+    
+    SystemState currentState = SystemState::IDLE_LISTENING;
 };
 
 #endif // ANIMATRONIC_HEAD_H
