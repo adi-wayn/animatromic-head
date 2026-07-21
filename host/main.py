@@ -1,0 +1,25 @@
+import asyncio
+import sys
+from loguru import logger
+
+async def main():
+    logger.info("Initializing Animatronic Head Host Environment...")
+    logger.debug("Asyncio event loop started successfully.")
+    
+    # Placeholder for Phase 2 UDP server task
+    try:
+        while True:
+            await asyncio.sleep(1)
+    except asyncio.CancelledError:
+        logger.info("Main async task cancelled.")
+
+if __name__ == "__main__":
+    # Configure Loguru: Output to stdout with color, and to a rotating log file
+    logger.remove() # Remove default handler
+    logger.add(sys.stdout, colorize=True, format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>")
+    logger.add("logs/host_{time}.log", rotation="10 MB", retention="10 days", level="DEBUG")
+    
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        logger.warning("Host Environment gracefully shutting down (KeyboardInterrupt).")
