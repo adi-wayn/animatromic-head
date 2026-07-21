@@ -38,7 +38,7 @@ Due to pending physical audio hardware (INMP441 and MAX98357A), the development 
 ### Phase 2: Kinematics & Reactivity (Available Hardware)
 **Goal:** Enable the physical head to react to abstract JSON commands sent over Wi-Fi.
 
-- [ ] **Task 2.1: UDP Command Bridge & Edge JSON Parser [Both]**
+- [x] **Task 2.1: UDP Command Bridge & Edge JSON Parser [Both]**
   - Establish unencrypted UDP Wi-Fi connection on ESP32.
   - Implement FreeRTOS Core 1 task to parse incoming JSON payloads.
   - Define state machine: `IDLE_LISTENING`, `SPEAKING_SYNCING`, `INTERRUPTED`.
