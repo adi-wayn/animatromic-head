@@ -6,6 +6,9 @@
 // Smooth acceleration and deceleration (Ease In-Out Sine)
 double easeInOutSine(double t);
 
+// Organic biological macro-movement acceleration (Ease In-Out Cubic)
+double easeInOutCubic(double t);
+
 // Rapid acceleration, slow deceleration (Ease Out Expo) for eye saccades
 double easeOutExpo(double t);
 

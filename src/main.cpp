@@ -75,6 +75,11 @@ void jsonParserTask(void *pvParameters) {
         else if (doc.containsKey("cognitive_state")) {
           head.setState(SystemState::SPEAKING_SYNCING);
           Serial.println("[Dispatcher] State Changed: SPEAKING_SYNCING");
+          const char* emotion = doc["cognitive_state"]["emotion_primary"];
+          if (emotion) {
+            head.executePose(emotion);
+            Serial.printf("[Dispatcher] Executing Pose: %s\n", emotion);
+          }
         }
       } else {
         Serial.printf("[Dispatcher] JSON Parse Error: %s\n", error.c_str());

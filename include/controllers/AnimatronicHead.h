@@ -5,8 +5,9 @@
 #include "core/Config.h"
 
 enum EasingType {
-    EASE_IN_OUT_SINE,
-    EASE_OUT_EXPO,
+    EASE_IN_OUT_SINE, // Medium-speed conversational articulation
+    EASE_IN_OUT_CUBIC, // Macro-movement posture shifts
+    EASE_OUT_EXPO, // Rapid micro-movements (blinks/saccades)
     NONE
 };
 
@@ -54,6 +55,10 @@ public:
     void expressSad();
     void expressThinking(); // listenMode
     void resetToNeutral();
+    
+    // --- Pose Dictionary Execution ---
+    // Maps string intents from JSON to servo sequences
+    void executePose(const char* intent);
     
     // --- Idle Mode ---
     void toggleIdleMode();

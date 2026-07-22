@@ -43,7 +43,7 @@ Due to pending physical audio hardware (INMP441 and MAX98357A), the development 
   - Implement FreeRTOS Core 1 task to parse incoming JSON payloads.
   - Define state machine: `IDLE_LISTENING`, `SPEAKING_SYNCING`, `INTERRUPTED`.
 
-- [ ] **Task 2.2: Pose Dictionary & Easing [Both]**
+- [x] **Task 2.2: Pose Dictionary & Easing [Both]**
   - Create a local `PoseDictionary` mapping JSON intents (e.g., `SAD`, `HAPPY`) to precise servo PWM limits.
   - Implement cubic easing functions (`ease-in-out`) so servos move fluidly rather than snapping instantly.
 
