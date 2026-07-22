@@ -81,6 +81,15 @@ void jsonParserTask(void *pvParameters) {
             Serial.printf("[Dispatcher] Executing Pose: %s\n", emotion);
           }
         }
+        // Handle Direct Physical Commands
+        else if (doc.containsKey("physical_command")) {
+          head.setState(SystemState::IDLE_LISTENING);
+          const char* command = doc["physical_command"];
+          if (command) {
+            head.executePose(command);
+            Serial.printf("[Dispatcher] Executing Command: %s\n", command);
+          }
+        }
       } else {
         Serial.printf("[Dispatcher] JSON Parse Error: %s\n", error.c_str());
       }
