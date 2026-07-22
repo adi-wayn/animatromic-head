@@ -24,3 +24,8 @@ This project uses a split architecture:
 *   **Protocol:** All audio streams between Edge and Host use **Unencrypted UDP** over local Wi-Fi to prioritize latency over packet safety. Do not implement TCP overhead.
 *   **Latency SLA:** Total conversational turnaround (STT -> LLM -> TTS) must not exceed 3.0 seconds on average.
 *   **Interruption:** If the Host VAD detects user speech, it must immediately send an `EMERGENCY_STOP` JSON command to the ESP32.
+
+## 5. Architectural & Design Pattern Enforcement (ESP32)
+*   **Meyers Singletons:** All core subsystems (`KinematicEngine`, `PoseController`, `AnimatronicHead`, `NetworkManager`) MUST be implemented as thread-safe Meyers Singletons (`static ClassName& getInstance()`). **No global variables** are permitted for these systems.
+*   **Facade Pattern:** The `AnimatronicHead` class must act as a pure, lightweight Facade. It delegates intent to the `PoseController` and math/hardware-driving to the `KinematicEngine`. It must not contain raw servo logic.
+*   **Strict Primitive Composition:** The `PoseController` uses a two-tier abstraction. Macros (like `expressSad`) and mid-level commands (like `lookLeft`) **MUST NEVER** interface directly with the `KinematicEngine`. They must exclusively compose behavior from a strict, private set of atomic Base Primitives (e.g., `moveNeckPan`, `moveEyelidLeft`). This guarantees hardware defect mitigations (like Jaw L/R clamping) applied at the atomic level cannot be bypassed.

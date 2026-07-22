@@ -227,8 +227,14 @@ The Host operates an `asyncio` event loop designed to ensure network socket list
 
 ### 5.2 The Deterministic Kinematic Engine (ESP32)
 The ESP32 firmware on Core 1 operates the **Contextual Kinematic Controller**. 
-To ensure physical safety, the ESP32 acts as the absolute deterministic authority over movement. The Python LLM is inherently non-deterministic and is *only* permitted to transmit abstract cognitive intents (e.g., "SAD"). 
-The ESP32 firmware contains a hardcoded C++ `PoseDictionary` (stored in PROGMEM) that safely maps these abstract intents into physical PWM bounds, preventing the LLM from hallucinating commands that would strip the 3D-printed gears.
+To ensure physical safety, the ESP32 acts as the absolute deterministic authority over movement. The Python LLM is inherently non-deterministic and is *only* permitted to transmit abstract cognitive intents (e.g., "SAD") or direct physical commands (e.g., "LOOK_LEFT"). 
+
+The software architecture strictly adheres to three design patterns to guarantee safety and thread concurrency:
+1.  **Meyers Singletons:** All primary subsystems (`KinematicEngine`, `PoseController`, `AnimatronicHead`, `NetworkManager`) are instantiated lazily as static references. This eliminates global variable bloat and ensures thread-safe access across FreeRTOS tasks.
+2.  **Facade Pattern:** The `AnimatronicHead` class acts as a single, lightweight entry point for all high-level intents. It contains no raw hardware logic. It delegates cognitive routing to the `PoseController` and continuous motor evaluation to the `KinematicEngine`.
+3.  **Strict Primitive Composition Pattern:** The `PoseController` translates abstract intents into physical PWM bounds via a two-tier hierarchy.
+    *   **Atomic Base Primitives:** 9 private functions (e.g., `moveNeckPan`, `moveJawLR`) form the only bridge to the underlying `KinematicEngine`. Hardware safety clamps (e.g., Jaw lateral boundaries) are embedded here.
+    *   **Composite Macros:** Higher-order expressions (e.g., `expressSad`, `blink`) are **strictly prohibited** from communicating directly with the `KinematicEngine`. They must exclusively invoke and compose the Atomic Base Primitives. This guarantees that mechanical constraints cannot be bypassed by a rogue LLM intent.
 
 #### 5.2.1 Non-Blocking State Machine Architecture
 To satisfy strict real-time responsiveness constraints, the Kinematic Engine operates as a continuous, non-blocking state machine.
@@ -236,8 +242,8 @@ To satisfy strict real-time responsiveness constraints, the Kinematic Engine ope
 *   **Continuous Kinematic Loop:** A dedicated `updateKinematics()` routine runs continuously at ~60Hz (15ms tick rate) on Core 1. It recalculates the eased positions for all active servos based on the current system timestamp. This guarantees that Core 1 is never locked in a `delay()` loop and remains instantly available to process UDP VAD interrupts mid-movement.
 
 ### 5.3 Emotion-to-Kinematic Translation Algorithms
-*   **Easing Functions:** To simulate organic biology, servos do not snap linearly from Point A to Point B. The ESP32 firmware interpolates the path using mathematical easing functions (e.g., `ease-in-out-cubic`), making the animatronic movements appear fluid and lifelike.
-*   **Saccadic Eye Movement Generator:** A background micro-task on the ESP32 occasionally injects tiny, random positional offsets to the eye servos when the system is in the `IDLE_LISTENING` state. This replicates human saccades, keeping the avatar feeling "alive" even when it is perfectly quiet.
+*   **Easing Functions:** To simulate organic biology, servos do not snap linearly from Point A to Point B. The ESP32 firmware interpolates the path using three mathematical easing curves in `Easing.cpp`: `easeInOutSine` (conversational articulation), `easeInOutCubic` (macro posture shifts), and `easeOutExpo` (rapid micro-movements like blinks and saccades).
+*   **Saccadic Eye Movement Generator:** A background micro-task pinned to Core 1 occasionally injects tiny, random positional offsets (derived from a wave-superposition pseudo-random noise generator) to the eye servos when the system is in the `IDLE_LISTENING` state. This replicates human saccades, keeping the avatar feeling "alive" even when it is perfectly quiet.
 
 ---
 
