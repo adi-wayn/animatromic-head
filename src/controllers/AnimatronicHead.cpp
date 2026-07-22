@@ -59,6 +59,7 @@ void AnimatronicHead::updateKinematics() {
                 double t = (double)elapsed / states[i].durationMs;
                 double easedT = t;
                 if (states[i].easingType == EASE_IN_OUT_SINE) easedT = easeInOutSine(t);
+                else if (states[i].easingType == EASE_IN_OUT_CUBIC) easedT = easeInOutCubic(t);
                 else if (states[i].easingType == EASE_OUT_EXPO) easedT = easeOutExpo(t);
                 
                 currentAngle = states[i].startAngle + ((states[i].targetAngle - states[i].startAngle) * easedT);
@@ -169,35 +170,72 @@ void AnimatronicHead::jawRight() {
 
 // --- Emotions / Reactions ---
 
+void AnimatronicHead::executePose(const char* intent) {
+    if (strcmp(intent, "HAPPY") == 0) expressHappy();
+    else if (strcmp(intent, "SAD") == 0) expressSad();
+    else if (strcmp(intent, "THINKING") == 0) expressThinking();
+    else if (strcmp(intent, "NEUTRAL") == 0) resetToNeutral();
+    else resetToNeutral(); // Fallback
+}
+
 void AnimatronicHead::expressHappy() {
+    // Defect Mitigation: Eyelids are perfectly slaved using Expo easing
     triggerMove(EYELID_LEFT, EYELID_LEFT.minAngle, 150, EASE_OUT_EXPO);
     triggerMove(EYELID_RIGHT, EYELID_RIGHT.minAngle, 150, EASE_OUT_EXPO);
-    triggerMove(NECK_Y, NECK_Y.minAngle, 300, EASE_IN_OUT_SINE);
+    
+    // Defect Mitigation: Jaw L/R is clamped strictly near center during expressions
+    triggerMove(JAW_LR, JAW_LR.centerAngle, 400, EASE_IN_OUT_SINE);
+    
+    // Posture shift utilizing the new Cubic easing
+    triggerMove(JAW_UD, JAW_UD.centerAngle - 20, 400, EASE_IN_OUT_SINE);
+    triggerMove(NECK_Y, NECK_Y.minAngle, 400, EASE_IN_OUT_CUBIC);
 }
 
 void AnimatronicHead::expressSad() {
     double halfClosedLeft = (EYELID_LEFT.minAngle + EYELID_LEFT.maxAngle) / 2;
     double halfClosedRight = (EYELID_RIGHT.minAngle + EYELID_RIGHT.maxAngle) / 2;
-    triggerMove(EYELID_LEFT, halfClosedLeft, 150, EASE_OUT_EXPO);
-    triggerMove(EYELID_RIGHT, halfClosedRight, 150, EASE_OUT_EXPO);
-    triggerMove(NECK_Y, NECK_Y.maxAngle, 1000, EASE_IN_OUT_SINE);
+    // Defect Mitigation: Eyelids slaved
+    triggerMove(EYELID_LEFT, halfClosedLeft, 250, EASE_OUT_EXPO);
+    triggerMove(EYELID_RIGHT, halfClosedRight, 250, EASE_OUT_EXPO);
+    
+    // Defect Mitigation: Jaw clamped
+    triggerMove(JAW_LR, JAW_LR.centerAngle, 400, EASE_IN_OUT_SINE);
+    triggerMove(JAW_UD, JAW_UD.centerAngle, 400, EASE_IN_OUT_SINE);
+
+    // Macro-movement posture shift
+    triggerMove(NECK_Y, NECK_Y.maxAngle, 800, EASE_IN_OUT_CUBIC);
+    triggerMove(NECK_ONE, NECK_ONE.centerAngle + 20, 800, EASE_IN_OUT_CUBIC);
 }
 
 void AnimatronicHead::expressThinking() {
-    triggerMove(NECK_ONE, NECK_ONE.centerAngle + 15, 600, EASE_IN_OUT_SINE);
-    triggerMove(NECK_Y, NECK_Y.centerAngle - 10, 600, EASE_IN_OUT_SINE);
+    // Slaved Eyelids
+    triggerMove(EYELID_LEFT, EYELID_LEFT.centerAngle, 200, EASE_OUT_EXPO);
+    triggerMove(EYELID_RIGHT, EYELID_RIGHT.centerAngle, 200, EASE_OUT_EXPO);
+    
+    // Clamped Jaw
+    triggerMove(JAW_LR, JAW_LR.centerAngle, 400, EASE_IN_OUT_SINE);
+    triggerMove(JAW_UD, JAW_UD.centerAngle - 10, 400, EASE_IN_OUT_SINE);
+
+    // Macro movement
+    triggerMove(NECK_ONE, NECK_ONE.centerAngle + 15, 600, EASE_IN_OUT_CUBIC);
+    triggerMove(NECK_Y, NECK_Y.centerAngle - 10, 600, EASE_IN_OUT_CUBIC);
 }
 
 void AnimatronicHead::resetToNeutral() {
-    triggerMove(NECK_ONE, NECK_ONE.centerAngle, 500, EASE_IN_OUT_SINE);
-    triggerMove(NECK_Y, NECK_Y.centerAngle, 500, EASE_IN_OUT_SINE);
-    triggerMove(NECK_ROLL, NECK_ROLL.centerAngle, 500, EASE_IN_OUT_SINE);
+    // Macro movements (Neck & Head)
+    triggerMove(NECK_ONE, NECK_ONE.centerAngle, 600, EASE_IN_OUT_CUBIC);
+    triggerMove(NECK_Y, NECK_Y.centerAngle, 600, EASE_IN_OUT_CUBIC);
+    triggerMove(NECK_ROLL, NECK_ROLL.centerAngle, 600, EASE_IN_OUT_CUBIC);
+    
+    // Micro movements (Eyes & Lids - Slaved)
     triggerMove(EYES_X, EYES_X.centerAngle, 300, EASE_OUT_EXPO);
     triggerMove(EYES_Y, EYES_Y.centerAngle, 300, EASE_OUT_EXPO);
-    triggerMove(JAW_UD, JAW_UD.centerAngle, 500, EASE_IN_OUT_SINE);
-    triggerMove(JAW_LR, JAW_LR.centerAngle, 500, EASE_IN_OUT_SINE);
     triggerMove(EYELID_LEFT, EYELID_LEFT.minAngle, 300, EASE_OUT_EXPO);
     triggerMove(EYELID_RIGHT, EYELID_RIGHT.minAngle, 300, EASE_OUT_EXPO);
+    
+    // Conversational/Jaw movements (Clamped)
+    triggerMove(JAW_UD, JAW_UD.centerAngle, 500, EASE_IN_OUT_SINE);
+    triggerMove(JAW_LR, JAW_LR.centerAngle, 500, EASE_IN_OUT_SINE);
 }
 
 void AnimatronicHead::toggleIdleMode() {

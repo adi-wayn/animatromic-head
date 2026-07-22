@@ -7,6 +7,12 @@ double easeInOutSine(double t) {
     return -(cos(PI * t) - 1.0) / 2.0;
 }
 
+double easeInOutCubic(double t) {
+    if (t < 0.0) t = 0.0;
+    if (t > 1.0) t = 1.0;
+    return t < 0.5 ? 4.0 * t * t * t : 1.0 - pow(-2.0 * t + 2.0, 3.0) / 2.0;
+}
+
 double easeOutExpo(double t) {
     if (t < 0.0) t = 0.0;
     if (t >= 1.0) return 1.0;
