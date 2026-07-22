@@ -43,6 +43,19 @@ private:
     void expressSad();
     void expressThinking();
     void resetToNeutral();
+
+    
+    // --- Strict Atomic Building Blocks (Base Primitives) ---
+    // Only these functions are permitted to communicate with KinematicEngine.
+    void moveNeckPan(double angle, int durationMs, EasingType easing);
+    void moveNeckTilt(double angle, int durationMs, EasingType easing);
+    void moveNeckRoll(double angle, int durationMs, EasingType easing);
+    void moveEyesPan(double angle, int durationMs, EasingType easing);
+    void moveEyesTilt(double angle, int durationMs, EasingType easing);
+    void moveEyelidLeft(double angle, int durationMs, EasingType easing);
+    void moveEyelidRight(double angle, int durationMs, EasingType easing);
+    void moveJawUD(double angle, int durationMs, EasingType easing);
+    void moveJawLR(double targetAngle, int durationMs, EasingType easing); // Clamps internally
 };
 
 #endif
