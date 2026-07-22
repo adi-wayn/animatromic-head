@@ -107,6 +107,7 @@ void setup() {
 }
 
 void loop() {
-  // Core 0 loop is intentionally empty right now. Will handle Wi-Fi/UDP in Phase 2/4.
+  // Main loop is intentionally empty.
+  // All logic is handled by dedicated FreeRTOS tasks (Kinematics, Parser, Network).
   vTaskDelay(pdMS_TO_TICKS(100));
 }
