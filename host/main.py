@@ -1,17 +1,12 @@
 import asyncio
 import sys
 from loguru import logger
+from core.orchestrator import CognitiveOrchestrator
 
 async def main():
     logger.info("Initializing Animatronic Head Host Environment...")
-    logger.debug("Asyncio event loop started successfully.")
-    
-    # Placeholder for Phase 2 UDP server task
-    try:
-        while True:
-            await asyncio.sleep(1)
-    except asyncio.CancelledError:
-        logger.info("Main async task cancelled.")
+    orchestrator = CognitiveOrchestrator()
+    await orchestrator.start()
 
 if __name__ == "__main__":
     # Configure Loguru: Output to stdout with color, and to a rotating log file
