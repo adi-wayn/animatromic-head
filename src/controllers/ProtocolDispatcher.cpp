@@ -16,11 +16,11 @@ void jsonParserTask(void *pvParameters) {
       DeserializationError error = deserializeJson(doc, incomingJson);
       
       if (!error) {
-        if (doc.containsKey("command") && strcmp(doc["command"], "EMERGENCY_STOP") == 0) {
+        if (doc["command"].is<const char*>() && strcmp(doc["command"], "EMERGENCY_STOP") == 0) {
           head.setState(SystemState::INTERRUPTED);
           Serial.println("[Dispatcher] State Changed: INTERRUPTED");
         }
-        else if (doc.containsKey("cognitive_state")) {
+        else if (doc["cognitive_state"].is<JsonObject>()) {
           head.setState(SystemState::SPEAKING_SYNCING);
           Serial.println("[Dispatcher] State Changed: SPEAKING_SYNCING");
           const char* emotion = doc["cognitive_state"]["emotion_primary"];
@@ -30,7 +30,7 @@ void jsonParserTask(void *pvParameters) {
           }
         }
         // Handle Direct Physical Commands
-        else if (doc.containsKey("physical_command")) {
+        else if (doc["physical_command"].is<const char*>()) {
           head.setState(SystemState::IDLE_LISTENING);
           const char* command = doc["physical_command"];
           if (command) {

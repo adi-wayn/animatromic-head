@@ -47,7 +47,7 @@ Due to pending physical audio hardware (INMP441 and MAX98357A), the development 
   - Create a local `PoseDictionary` mapping JSON intents (e.g., `SAD`, `HAPPY`) to precise servo PWM limits.
   - Implement cubic easing functions (`ease-in-out`) so servos move fluidly rather than snapping instantly.
 
-- [ ] **Task 2.3: Defect Mitigation & Saccades [Software]**
+- [x] **Task 2.3: Defect Mitigation & Saccades [Software]**
   - Implement a background task injecting random eye saccades (micro-movements) during the `IDLE_LISTENING` state.
   - Implement software fix for Right Eyelid binding: Mathematically blend its movement into the Left Eyelid macro.
   - Clamp lateral (L/R) jaw movement to prevent gear stripping.
