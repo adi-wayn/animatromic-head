@@ -3,6 +3,13 @@
 
 #include <Arduino.h>
 
+enum EasingType {
+    EASE_IN_OUT_SINE, // Medium-speed conversational articulation
+    EASE_IN_OUT_CUBIC, // Macro-movement posture shifts
+    EASE_OUT_EXPO, // Rapid micro-movements (blinks/saccades)
+    NONE
+};
+
 // Smooth acceleration and deceleration (Ease In-Out Sine)
 double easeInOutSine(double t);
 

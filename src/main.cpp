@@ -14,6 +14,7 @@ void setup() {
   // Singletons will auto-instantiate on their first use inside these tasks.
   xTaskCreatePinnedToCore(kinematicsTask, "Kinematics", 4096, NULL, 5, NULL, 1);
   xTaskCreatePinnedToCore(jsonParserTask, "JSON_Parser", 4096, NULL, 10, NULL, 1);
+  xTaskCreatePinnedToCore(idleBehaviorTask, "Idle_Behavior", 4096, NULL, 3, NULL, 1);
   xTaskCreatePinnedToCore(networkTask, "Network", 4096, NULL, 20, NULL, 0);
   
   // Create Staggered Boot task (runs once on Core 1, then deletes itself)

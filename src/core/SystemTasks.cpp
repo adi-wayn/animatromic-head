@@ -47,9 +47,33 @@ void staggeredBootTask(void *pvParameters) {
 // --- Service 1: Network Transport (Core 0, High Priority) ---
 void networkTask(void *pvParameters) {
   (void) pvParameters;
-  NetworkManager::getInstance().begin();
+  NetworkManager& network = NetworkManager::getInstance();
+  network.begin();
   while (true) {
-    NetworkManager::getInstance().update();
+    network.update();
     vTaskDelay(pdMS_TO_TICKS(5));
+  }
+}
+
+// --- Service 3: Idle Behaviors (Core 1, Low Priority) ---
+void idleBehaviorTask(void *pvParameters) {
+  (void) pvParameters;
+  while (true) {
+    AnimatronicHead& head = AnimatronicHead::getInstance();
+    
+    if (head.isBooted() && head.getState() == SystemState::IDLE_LISTENING) {
+        // Trigger organic eye movement via the Facade
+        head.triggerSaccade(millis());
+        
+        // 15% chance to blink using the generic executePose API!
+        if (random(0, 100) < 15) {
+            head.executePose("BLINK");
+        }
+        
+        // Wait biological delay before next dart
+        vTaskDelay(pdMS_TO_TICKS(random(800, 2500)));
+    } else {
+        vTaskDelay(pdMS_TO_TICKS(500));
+    }
   }
 }
