@@ -52,6 +52,11 @@ Due to pending physical audio hardware (INMP441 and MAX98357A), the development 
   - Implement software fix for Right Eyelid binding: Mathematically blend its movement into the Left Eyelid macro.
   - Clamp lateral (L/R) jaw movement to prevent gear stripping.
 
+- [x] **Task 2.4: Strict Primitive Composition Pattern [Software]**
+  - Create atomic primitives in `PoseController` for hardware abstraction.
+  - Prevent macros from directly interacting with `KinematicEngine`.
+  - Embed hardware limits (e.g. jaw clamping) directly into atomic layer.
+
 ### Phase 3: Host Cognitive Pipeline (Local PC Mocking)
 **Goal:** Build the conversational AI loop locally, using PC mic/speakers to substitute for the missing I2S modules.
 
