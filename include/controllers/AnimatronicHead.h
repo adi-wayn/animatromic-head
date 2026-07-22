@@ -33,23 +33,23 @@ public:
     void begin();
 
     // --- Basic Directions ---
-    void lookLeft();
-    void lookRight();
-    void lookUp();
-    void lookDown();
-    void tiltRight();
-    void tiltLeft();
+    void lookLeft(int durationMs = 500, EasingType easing = EASE_IN_OUT_SINE);
+    void lookRight(int durationMs = 500, EasingType easing = EASE_IN_OUT_SINE);
+    void lookUp(int durationMs = 500, EasingType easing = EASE_IN_OUT_SINE);
+    void lookDown(int durationMs = 500, EasingType easing = EASE_IN_OUT_SINE);
+    void tiltRight(int durationMs = 500, EasingType easing = EASE_IN_OUT_SINE);
+    void tiltLeft(int durationMs = 500, EasingType easing = EASE_IN_OUT_SINE);
     
     // --- Eyelids ---
-    void blinkRight();
-    void blinkLeft();
-    void blink();
+    void blinkRight(int durationMs = 150, EasingType easing = EASE_OUT_EXPO);
+    void blinkLeft(int durationMs = 150, EasingType easing = EASE_OUT_EXPO);
+    void blink(int durationMs = 150, EasingType easing = EASE_OUT_EXPO);
 
     // --- Jaw ---
-    void jawOpen();
-    void jawClose();
-    void jawLeft();
-    void jawRight();
+    void jawOpen(int durationMs = 300, EasingType easing = EASE_IN_OUT_SINE);
+    void jawClose(int durationMs = 300, EasingType easing = EASE_IN_OUT_SINE);
+    void jawLeft(int durationMs = 300, EasingType easing = EASE_IN_OUT_SINE);
+    void jawRight(int durationMs = 300, EasingType easing = EASE_IN_OUT_SINE);
 
     void expressHappy();
     void expressSad();
