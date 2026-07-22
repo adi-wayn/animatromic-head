@@ -28,7 +28,15 @@ enum class SystemState {
 
 class AnimatronicHead {
 public:
-    AnimatronicHead();
+    // --- Singleton Access ---
+    static AnimatronicHead& getInstance() {
+        static AnimatronicHead instance;
+        return instance;
+    }
+
+    // Prevent copying
+    AnimatronicHead(const AnimatronicHead&) = delete;
+    void operator=(const AnimatronicHead&) = delete;
 
     void begin();
 
@@ -70,7 +78,13 @@ public:
     SystemState getState() const { return currentState; }
     void setState(SystemState newState) { currentState = newState; }
 
+    bool isBooted() const { return fullyBooted; }
+    void setBooted(bool state) { fullyBooted = state; }
+
 private:
+    AnimatronicHead();
+
+    bool fullyBooted = false;
     void triggerMove(const ServoConfig& config, double targetAngle, int durationMs, EasingType easingType);
     
     ServoState states[16]; // Indexed by channel (max 16 channels on PCA9685)
