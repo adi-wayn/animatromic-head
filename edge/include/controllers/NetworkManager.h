@@ -4,9 +4,7 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <WiFiUdp.h>
-
-// Network-specific configuration is localized here, not in the mechanical Config.h
-constexpr uint16_t DEFAULT_UDP_PORT = 4210;
+#include "controllers/ProtocolParser.h"
 
 class NetworkManager {
 public:
@@ -20,7 +18,7 @@ public:
     NetworkManager(const NetworkManager&) = delete;
     void operator=(const NetworkManager&) = delete;
 
-    void begin(uint16_t port = DEFAULT_UDP_PORT);
+    void begin(uint16_t port = PORT_CONTROL);
     
     // To be called continuously in the Network Core 0 task
     void update(); 

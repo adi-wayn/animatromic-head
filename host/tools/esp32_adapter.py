@@ -9,18 +9,24 @@ from langgraph.prebuilt import InjectedState
 from typing_extensions import Annotated
 from pydantic import BaseModel, Field
 
+from host.protocol.messages import (
+    PORT_CONTROL,
+    create_intent_message,
+    create_emergency_stop_message,
+    create_phase_update_message,
+)
+
 logger = logging.getLogger(__name__)
 
 # Configurable endpoints (these should ideally be pulled from a .env or config file)
-ESP32_IP = "192.168.1.100" # Placeholder, will be replaced by actual static IP
-ESP32_UDP_PORT = 4210
+ESP32_IP = "192.168.1.100"  # Placeholder, will be replaced by actual static IP
 
 class ESP32UDPAdapter:
     """
     Adapter Pattern for ESP32 UDP communications.
     Provides a high-level API over the raw UDP socket.
     """
-    def __init__(self, ip: str = ESP32_IP, port: int = ESP32_UDP_PORT):
+    def __init__(self, ip: str = ESP32_IP, port: int = PORT_CONTROL):
         self.ip = ip
         self.port = port
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -42,8 +48,7 @@ class ESP32UDPAdapter:
         """
         High-level API for sending emotional/kinematic intents.
         """
-        from host.protocol.messages import create_intent_message
-        msg = create_intent_message(emotion=emotion.upper(), intensity=intensity)
+        msg = create_intent_message(emotion_primary=emotion.upper(), intensity_level=intensity)
         success = self.send_raw_json(msg.model_dump())
         if success:
             return f"Successfully sent intent {emotion} with intensity {intensity} to hardware."
@@ -51,14 +56,12 @@ class ESP32UDPAdapter:
 
     def emergency_stop(self) -> None:
         """Sends an immediate INTERRUPT command."""
-        from host.protocol.messages import create_emergency_stop_message
         msg = create_emergency_stop_message()
         self.send_raw_json(msg.model_dump())
         
     def broadcast_phase(self, phase: str) -> None:
         """Broadcasts the current conversational phase."""
-        from host.protocol.messages import create_phase_message
-        msg = create_phase_message(phase=phase)
+        msg = create_phase_update_message(conversational_phase=phase)
         self.send_raw_json(msg.model_dump())
 
 

@@ -94,6 +94,11 @@
 ### Phase 4: Network Audio Pipeline (Hardware Dependent)
 **Goal:** Install the I2S modules and transition the audio topology from the PC to the ESP32.
 
+- [x] **Task 4.0: Protocol Expansion [Both]**
+  - Establish the 3-port UDP topology (Control, Audio Uplink, Audio Downlink).
+  - Update `schema.json` and `generate_protocol.py` to act as the single source of truth for port constants and audio formats.
+  - Implement the `TTS_COMPLETE` control message.
+
 - [ ] **Task 4.1: Edge Audio Uplink (Microphone) [Both]**
   - Install INMP441 on the breadboard.
   - Configure I2S0 DMA in ESP-IDF.

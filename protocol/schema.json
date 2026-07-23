@@ -1,4 +1,15 @@
 {
+  "ports": {
+    "CONTROL": 4210,
+    "AUDIO_UPLINK": 4211,
+    "AUDIO_DOWNLINK": 4212
+  },
+  "audio_format": {
+    "sample_rate_hz": 16000,
+    "bit_depth": 16,
+    "channels": 1,
+    "chunk_size_bytes": 1024
+  },
   "messages": {
     "INTENT": {
       "emotion_primary": "string",
@@ -7,6 +18,7 @@
     "PHASE_UPDATE": {
       "conversational_phase": "string"
     },
-    "EMERGENCY_STOP": {}
+    "EMERGENCY_STOP": {},
+    "TTS_COMPLETE": {}
   }
 }

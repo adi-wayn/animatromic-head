@@ -2,6 +2,17 @@ from pydantic import BaseModel, Field
 import time
 import uuid
 
+# --- Port Constants (auto-generated from schema.json) ---
+PORT_CONTROL = 4210
+PORT_AUDIO_UPLINK = 4211
+PORT_AUDIO_DOWNLINK = 4212
+
+# --- Audio Format Constants (auto-generated from schema.json) ---
+AUDIO_SAMPLE_RATE_HZ = 16000
+AUDIO_BIT_DEPTH = 16
+AUDIO_CHANNELS = 1
+AUDIO_CHUNK_SIZE_BYTES = 1024
+
 class BaseMessage(BaseModel):
     type: str
     event_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -29,3 +40,6 @@ def create_phase_update_message(conversational_phase: str) -> BaseMessage:
 
 def create_emergency_stop_message() -> BaseMessage:
     return BaseMessage(type="EMERGENCY_STOP", payload={})
+
+def create_tts_complete_message() -> BaseMessage:
+    return BaseMessage(type="TTS_COMPLETE", payload={})
