@@ -30,14 +30,19 @@ class WhisperTranscriber:
             
         return result["text"].strip()
 
-async def stt_worker(segment_queue: asyncio.Queue, transcriber: WhisperTranscriber):
-    """Continuously processes speech segments from the queue."""
+async def stt_worker(segment_queue: asyncio.Queue, transcriber: WhisperTranscriber, text_queue: asyncio.Queue):
+    """Continuously processes speech segments and puts transcriptions in text_queue."""
     logger.info("STT Worker started. Waiting for speech segments...")
     while True:
         audio_bytes = await segment_queue.get()
         logger.debug(f"Speech segment captured ({len(audio_bytes)} bytes). Transcribing...")
+        
         # Offload heavy inference to a thread to prevent blocking the event loop
         text = await asyncio.to_thread(transcriber.transcribe, audio_bytes)
+        
         if text:
             logger.info(f"USER SAID: {text}")
+            # Put transcribed text into the LLM/Orchestrator queue
+            text_queue.put_nowait(text)
+                
         segment_queue.task_done()

@@ -34,6 +34,12 @@ class VADManager:
         # Determine silence timeout (e.g. 1500ms of silence to stop recording)
         self.silence_limit_frames = int(1500 / self.CHUNK_DURATION_MS)
         self.silence_counter = 0
+        
+        # Observer Pattern: List of callbacks to fire on speech interruption
+        self.interrupt_callbacks = []
+
+    def register_interrupt_callback(self, callback):
+        self.interrupt_callbacks.append(callback)
 
     def start(self):
         logger.info(f"Starting Audio Ingestion. Rate: {self.RATE}Hz, Chunk: {self.CHUNK_DURATION_MS}ms")
@@ -80,7 +86,9 @@ class VADManager:
                 self.voiced_frames.extend([f for f, s in self.ring_buffer])
                 self.ring_buffer.clear()
                 self.silence_counter = 0
-                logger.debug("Speech started.")
+                logger.debug("Speech started. Publishing INTERRUPT event.")
+                for cb in self.interrupt_callbacks:
+                    self.loop.call_soon_threadsafe(cb)
         else:
             self.voiced_frames.append(in_data)
             if is_speech:

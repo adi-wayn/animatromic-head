@@ -60,12 +60,12 @@ Due to pending physical audio hardware (INMP441 and MAX98357A), the development 
 ### Phase 3: Host Cognitive Pipeline (Local PC Mocking)
 **Goal:** Build the conversational AI loop locally, using PC mic/speakers to substitute for the missing I2S modules.
 
-- [ ] **Task 3.1: Host VAD & STT Ingestion [Software]**
+- [x] **Task 3.1: Host VAD & STT Ingestion [Software]**
   - Implement WebRTC VAD.
   - *Temporary:* Ingest audio via PC microphone (`pyaudio`).
   - Route segmented audio to Whisper STT for text transcription.
 
-- [ ] **Task 3.2: Multi-Model LLM Intent Generation [Software]**
+- [x] **Task 3.2: Multi-Model LLM Intent Generation [Software]**
   - Feed STT output and conversation history into Ollama.
   - Implement **Fallback Pattern**: Try `Llama 3` -> if timeout/fail -> try `Mistral` -> if fail -> try `Phi-3`.
   - Constrain LLM output to structured JSON containing conversational text and `cognitive_state`.
