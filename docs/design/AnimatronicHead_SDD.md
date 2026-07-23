@@ -222,7 +222,7 @@ To maintain the illusion of biological reactivity, the architecture must adhere 
 The Host operates an `asyncio` event loop designed to ensure network socket listeners are never blocked by heavy AI inference.
 1.  **UDP Socket Server:** Continuously listens for raw audio bytes from the ESP32 and routes them into an asynchronous memory queue.
 2.  **WebRTC VAD Worker:** Analyzes the incoming queue in 10-30ms frames to detect human speech.
-3.  **Conversational Memory Manager:** Maintains the rolling $N$-turn conversational context. It builds the final prompt by combining the new Whisper STT text with the historical context and injects it into the Ollama LLM endpoint.
+3.  **StateGraph Orchestrator:** Manages the conversational flow using an explicit LangGraph `StateGraph`. It cycles through `listen_node`, `agent_node` (LLM inference), and `action_node` (Tool Execution). It pulls conversational history from a decoupled `MemoryManager`.
 4.  **Dual-TTS Dispatcher:** Receives the LLM text output. Routes to Coqui XTTS, falling back to Piper if generation exceeds the 1500ms threshold. Streams resulting bytes back to the ESP32.
 
 ### 5.2 The Deterministic Kinematic Engine (ESP32)
