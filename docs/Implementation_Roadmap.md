@@ -7,7 +7,7 @@
 ---
 
 ## 1. The Golden Path (Current Strategy)
-Due to pending physical audio hardware (INMP441 and MAX98357A), the development priority is shifted to establish the "Brain" and the "Muscles" first.
+*Update:* The physical audio hardware (INMP441 and MAX98357A) has been acquired. Phase 4 is now unblocked.
 1. **Foundation:** Initialize ESP32 (PlatformIO) and Python (`uv`) environments.
 2. **Servo Mechanics (Ears/Eyes/Neck):** Build the JSON parsing and servo controllers on the ESP32. We will test by sending mock JSON commands over UDP.
 3. **Host Cognitive Brain:** Build the Python AI pipeline on the PC using the PC's built-in microphone and speakers. Implement the LLM multi-model fallback.
