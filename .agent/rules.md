@@ -32,3 +32,8 @@ This project uses a split architecture:
 
 ## 6. Strict "No Mocks" Policy
 *   **ABSOLUTELY NO MOCKS ALLOWED:** Under no circumstances should any code in this project use "mocks" or fake data. All tools, connections, sensors, MCP implementations, and data pipelines must be fully functional and real. If a hardware component is not available, write the real production logic (e.g., real UDP sockets to the ESP32) to ensure the system architecture is robust and immediately ready for hardware integration. Any AI agent that proposes a "mock" violates this foundational rule.
+
+## 7. Strict Agentic Task Workflow & `main` Branch Protection
+*   **`main` is READ-ONLY:** You must NEVER, NEVER, EVER write or commit code to the `main` branch. 
+*   **Workflow Enforcement:** You MUST strictly follow the `agentic-task-workflow` skill (all 16 steps) every single time you work on a task.
+*   **Documentation Maintenance:** You MUST continually update `AGENT.md`, `docs/`, and `.agent/` files at the end of your workflow so that future agents do not repeat mistakes. This is a hard-coded mandate.
