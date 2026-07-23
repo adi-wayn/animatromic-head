@@ -15,8 +15,8 @@
 4.  **Eyes & Face:** 3x SG90 Micro Servos (Yaw/Pitch vectors and Eyelids).
 
 ## 3. Audio Modules (I2S Peripherals)
-> [!WARNING] 
-> **Current Status:** The INMP441 and MAX98357A are *currently missing* from the physical build. The software roadmap dictates we mock the Host AI pipeline locally before integrating these hardware pieces.
+> [!NOTE] 
+> **Current Status:** The INMP441 and MAX98357A modules have been acquired. We are actively integrating these I2S modules to transition audio from the Host PC to the ESP32 Edge.
 
 *   **Microphone (Ears):** INMP441 Omnidirectional Digital I2S Mic.
     *   *To be wired to ESP32 I2S0 peripheral.*
