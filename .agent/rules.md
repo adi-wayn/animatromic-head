@@ -22,7 +22,7 @@ This project strictly enforces a tri-layer physical repository structure to ensu
 *   **No Blocking:** Never use `delay()` in FreeRTOS tasks. Use `vTaskDelay(pdMS_TO_TICKS(ms))`.
 
 ## 4. Audio Pipeline Protocol
-*   **Protocol:** All audio streams between Edge and Host use **Unencrypted UDP** over local Wi-Fi to prioritize latency over packet safety. Do not implement TCP overhead.
+*   **Topology:** The system strictly uses a 3-port UDP topology over local Wi-Fi (Control: 4210, Uplink: 4211, Downlink: 4212) to prioritize latency over packet safety. Do not implement TCP overhead.
 *   **Latency SLA:** Total conversational turnaround (STT -> LLM -> TTS) must not exceed 3.0 seconds on average.
 *   **Interruption:** If the Host VAD detects user speech, it must immediately send an `EMERGENCY_STOP` JSON command to the ESP32.
 
