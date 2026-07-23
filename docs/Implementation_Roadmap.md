@@ -70,7 +70,7 @@ Due to pending physical audio hardware (INMP441 and MAX98357A), the development 
   - Implement **Fallback Pattern**: Try `Llama 3` -> if timeout/fail -> try `Mistral` -> if fail -> try `Phi-3`.
   - Constrain LLM output to structured JSON containing conversational text and `cognitive_state`.
 
-- [ ] **Task 3.3: Dual-TTS & Audio Dispatch [Software]**
+- [x] **Task 3.3: Dual-TTS & Audio Dispatch [Software]**
   - Route LLM text to Coqui XTTS.
   - Implement 1500ms TTFB (Time-to-First-Byte) limit -> fallback to Piper TTS if exceeded.
   - *Temporary:* Play TTS audio directly out of PC speakers. Save amplitude envelope data to send to ESP32 for Lip-Sync testing.
