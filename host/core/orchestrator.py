@@ -1,11 +1,12 @@
 import asyncio
 from audio.vad import VADManager
 from audio.stt import WhisperTranscriber, stt_worker
+from core import graph
 from core.graph import agentic_graph
 from core.llm_manager import LLMManager
 from core.memory import wipe_memory
-from tools.hearing import set_text_queue
 from audio.tts.dual_tts_manager import dual_tts_manager
+from tools.esp32_adapter import send_emergency_stop
 from loguru import logger
 from langchain_core.messages import HumanMessage
 
@@ -15,8 +16,8 @@ class CognitiveOrchestrator:
         self.text_queue = asyncio.Queue()
         self.loop = asyncio.get_event_loop()
         
-        # Link the tool to the text_queue
-        set_text_queue(self.text_queue)
+        # Link the queue to the deterministic graph node
+        graph.text_queue = self.text_queue
         
         # Initialize dependencies
         self.transcriber = WhisperTranscriber("base.en")
@@ -27,29 +28,36 @@ class CognitiveOrchestrator:
 
     def handle_interrupt(self):
         logger.warning("INTERRUPT EVENT RECEIVED! Aborting current generation and TTS playback.")
+        # Halt audio playback
         dual_tts_manager.interrupt()
+        # SDD Requirement: Send EMERGENCY_STOP to ESP32 over UDP
+        send_emergency_stop()
         
     async def llm_worker(self):
         """
         Runs the agentic graph in a continuous loop.
-        The graph will call the `listen()` tool which blocks until text_queue has data.
+        The graph will start at `listen_node`, which blocks until `text_queue` has data.
         """
         logger.info("LLM Worker started. Beginning autonomous loop...")
         
         config = {"configurable": {"thread_id": "1"}}
         
-        # Start the loop
+        # The LangGraph `ainvoke` can be called once, or streamed. 
+        # Since our graph has a cyclic loop back to `listen_node` (or we run it repeatedly),
+        # we can just invoke it repeatedly. It expects new input or just runs.
+        # Actually, since it's a StateGraph, we can just `ainvoke` with no initial input,
+        # but LangGraph requires an initial state if we aren't resuming.
+        # Let's just start the loop. The `listen_node` will block asynchronously.
+        
         while True:
-            logger.debug("Invoking Agentic Ecosystem...")
+            logger.debug("Invoking Hybrid State Machine...")
             
-            def run_graph():
-                # We invoke with no explicit user input, letting the agent decide to use the `listen()` tool
-                # However, LangGraph create_react_agent often needs a dummy message or runs until no more tools.
-                # If it finishes, we restart it.
-                return agentic_graph.invoke({"messages": []}, config=config)
-            
-            result = await asyncio.to_thread(run_graph)
-            logger.debug("Graph execution completed turn. Restarting loop...")
+            try:
+                # We start the graph. It goes START -> listen_node -> blocks on text_queue
+                await agentic_graph.ainvoke({"messages": []}, config=config)
+                logger.debug("Graph execution completed turn. Restarting loop...")
+            except Exception as e:
+                logger.error(f"Graph execution failed: {e}")
             
             # Small yield to prevent CPU pinning if graph errors out immediately
             await asyncio.sleep(0.1)

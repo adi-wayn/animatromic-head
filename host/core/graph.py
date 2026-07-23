@@ -1,61 +1,109 @@
 import logging
 from langchain_core.messages import BaseMessage, SystemMessage, HumanMessage
-from langgraph.prebuilt import create_react_agent
-from langchain_core.messages import trim_messages
+from langgraph.graph import StateGraph, START, END
+from langgraph.prebuilt import ToolNode
+from langgraph.graph.message import add_messages
+from typing import Annotated, TypedDict
+import asyncio
 
 from .llm_manager import LLMManager
 from .memory import get_checkpointer
-from tools.esp32_adapter import send_kinematic_intent
-from tools.hearing import listen
+from .memory_manager import MemoryManager
+from tools.esp32_adapter import send_kinematic_intent, broadcast_phase
 from tools.speaking import speak
 
 logger = logging.getLogger(__name__)
 
-def memory_manager(messages: list[BaseMessage]) -> list[BaseMessage]:
-    """
-    Acts as an LRU Cache for the LLM context window.
-    Keeps the SystemMessage and only the last N messages.
-    """
-    # Trim to last 10 messages (5 turns), keep system message
-    trimmed = trim_messages(
-        messages,
-        max_tokens=10, 
-        token_counter=len, # Simple message count
-        strategy="last",
-        include_system=True
+# The orchestrator will inject the text_queue here
+text_queue: asyncio.Queue = None
+
+class AgentState(TypedDict):
+    messages: Annotated[list, add_messages]
+
+async def listen_node(state: AgentState):
+    """Deterministic node that blocks until the user speaks."""
+    logger.info("Graph entered LISTENING state.")
+    broadcast_phase("LISTENING")
+    
+    if text_queue is None:
+        raise ValueError("text_queue was never initialized in graph.py!")
+    
+    text = await text_queue.get()
+    text_queue.task_done()
+    
+    logger.debug(f"Graph received STT text: {text}")
+    return {"messages": [HumanMessage(content=text)]}
+
+async def agent_node(state: AgentState):
+    """The Probabilistic LLM Brain."""
+    logger.info("Graph entered REASONING state.")
+    
+    llm_manager = LLMManager()
+    llm = llm_manager.get_llm("llama3", temperature=0.7)
+    tools = [speak, send_kinematic_intent]
+    
+    llm_with_tools = llm.bind_tools(tools)
+    
+    # We must prepend the system message manually since we aren't using create_react_agent
+    system_prompt = SystemMessage(
+        content=(
+            "You are a scary, haunted skull animatronic. Your persona is terrifying, ghostly, and sarcastic. "
+            "You MUST use your tools to interact with the physical world. "
+            "When you reply verbally, call `speak(text)` and `send_kinematic_intent(emotion)` AT THE SAME TIME (in parallel) "
+            "so your physical body moves in sync while your voice is heard. "
+            "HOWEVER, you can also move WITHOUT speaking (e.g. idle movements, looking around, reacting silently) by ONLY calling `send_kinematic_intent(emotion)`. "
+            "Never respond with just plain text. ALWAYS use your tools to act, whether speaking, moving, or both."
+        )
     )
-    return trimmed
+    
+    # Ensure system prompt is the first message before trimming
+    messages_to_trim = [system_prompt] + state["messages"]
+    trimmed_messages = MemoryManager.trim_context(messages_to_trim)
+    
+    response = await llm_with_tools.ainvoke(trimmed_messages)
+    return {"messages": [response]}
+
+def route_after_agent(state: AgentState):
+    """Routes based on whether the LLM decided to use tools."""
+    last_msg = state["messages"][-1]
+    if hasattr(last_msg, "tool_calls") and last_msg.tool_calls:
+        logger.info("Graph routing to ACTION state (Tool Execution).")
+        broadcast_phase("SPEAKING")
+        return "action_node"
+    
+    logger.warning("Agent did not use any tools! Routing back to LISTENING.")
+    return "listen_node"
 
 def build_graph():
-    """Compiles the LangGraph React Agent Ecosystem."""
-    llm_manager = LLMManager()
+    """Compiles the LangGraph Hybrid State Machine."""
+    workflow = StateGraph(AgentState)
     
-    # We use Llama 3 or similar for the core reasoning loop
-    llm = llm_manager.get_llm("llama3", temperature=0.7)
+    # The tools node from langgraph.prebuilt automatically executes the tools defined
+    tools = [speak, send_kinematic_intent]
+    action_node = ToolNode(tools)
     
-    # Define our capabilities as explicit tools
-    tools = [listen, speak, send_kinematic_intent]
+    workflow.add_node("listen_node", listen_node)
+    workflow.add_node("agent_node", agent_node)
+    workflow.add_node("action_node", action_node)
     
-    # System Prompt defining the persona and autonomous loop behavior
-    system_prompt = (
-        "You are a scary, haunted skull animatronic. Your persona is terrifying, ghostly, and sarcastic. "
-        "You must use your tools to interact with the world. "
-        "When you wake up or finish an action, you must call `listen()` to hear the mortals. "
-        "When you reply, call `speak(text)` and `send_kinematic_intent(emotion)` AT THE SAME TIME (in parallel) so your physical body moves while your voice is heard. "
-        "Never respond with just text. Always use your tools."
+    workflow.add_edge(START, "listen_node")
+    workflow.add_edge("listen_node", "agent_node")
+    
+    workflow.add_conditional_edges(
+        "agent_node", 
+        route_after_agent, 
+        {"action_node": "action_node", "listen_node": "listen_node"}
     )
     
-    # Create the React Agent Graph natively
-    graph = create_react_agent(
-        model=llm,
-        tools=tools,
-        state_modifier=system_prompt,
-        checkpointer=get_checkpointer(),
-        # Apply the memory_manager hook to trim messages before they reach the LLM
-        messages_modifier=memory_manager 
-    )
+    # After executing the tools, it can go back to the agent to observe tool output
+    # or immediately cycle back to listening. A React agent usually goes back to the agent.
+    # To keep it strict Perceive->Think->Act, we can just route back to listen_node,
+    # but the LLM might need to see the tool success messages.
+    # We will route back to agent_node to allow it to evaluate the tool output.
+    workflow.add_edge("action_node", "agent_node")
     
-    logger.info("Agentic Graph compiled successfully with All-Tool Paradigm.")
+    graph = workflow.compile(checkpointer=get_checkpointer())
+    logger.info("Hybrid State Machine Graph compiled successfully.")
     return graph
 
 # Singleton instance
