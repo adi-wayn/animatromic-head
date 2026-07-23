@@ -2,10 +2,11 @@
 
 **ATTENTION AI AGENT:** These rules are strict boundaries. Do not violate them.
 
-## 1. Dual-Tier Architecture Rules
-This project uses a split architecture:
-*   **Edge (ESP32):** Handles deterministic kinematics and I2S audio routing. Uses **PlatformIO (Arduino + ESP-IDF)**.
-*   **Host (Python):** Handles all heavy AI computation (VAD, STT, LLM, TTS). Uses the **`uv` package manager**.
+## 1. Tri-Layer Architecture Rules
+This project strictly enforces a tri-layer physical repository structure to ensure decoupling:
+*   **Host (`host/`):** Python orchestration handling heavy AI computation (VAD, STT, LLM, TTS, LangGraph). Uses the **`uv` package manager**.
+*   **Protocol (`protocol/`):** The absolute Single Source of Truth for communication. Contains language-agnostic JSON schemas and code generators.
+*   **Edge (`edge/`):** ESP32 C++ firmware handling deterministic kinematics and I2S audio routing. Uses **PlatformIO (Arduino + ESP-IDF)**.
 *   **Constraint:** The ESP32 MUST NOT run any AI models locally due to SRAM limits.
 
 ## 2. Hardware Safety & Kinematics (ESP32)

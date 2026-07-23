@@ -81,10 +81,15 @@ Due to pending physical audio hardware (INMP441 and MAX98357A), the development 
   - Enforce strict Pydantic JSON schemas over UDP (`send_kinematic_intent`).
   - Wire Voice Activity Detection (VAD) to trigger immediate `EMERGENCY_STOP` UDP commands to the ESP32.
 
-- [x] **Task 3.5: Unified Communication Protocol Layer [Software]**
-  - Design a decoupled, unified Protocol Envelope for Host <-> Edge UDP communication.
-  - Implement Pydantic schema validation for standard `INTENT`, `PHASE_UPDATE`, and `EMERGENCY_STOP` payloads.
-  - Formally document the exact JSON structures in the SDD for Edge firmware parsing.
+- [x] **Task 3.5: Unified Communication Protocol Layer [Both]**
+  - Design `protocol/schema.json` as a decoupled Single Source of Truth for Host <-> Edge UDP communication.
+  - Implement `generate_protocol.py` to auto-generate Pydantic Python models and C++ parsing logic.
+  - Integrate pre-build hooks in PlatformIO to automatically compile against the latest JSON schema.
+
+- [x] **Task 3.6: Edge Code Encapsulation & Repository Reorganization [Both]**
+  - Encapsulate all PlatformIO ESP32 code (`src/`, `include/`, `lib/`, `platformio.ini`, etc.) into a dedicated `edge/` directory.
+  - Enforce the tri-layer physical repository structure: `host/`, `protocol/`, `edge/`.
+  - Update build automation scripts to maintain correct relative paths.
 
 ### Phase 4: Network Audio Pipeline (Hardware Dependent)
 **Goal:** Install the I2S modules and transition the audio topology from the PC to the ESP32.

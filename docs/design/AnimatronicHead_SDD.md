@@ -260,7 +260,7 @@ To ensure the Edge (C++) and Host (Python) systems are completely decoupled and 
 1. **The Master Schema (`protocol/schema.json`)**: Acts as the absolute, language-agnostic source of truth.
 2. **The Code Generator (`protocol/generate_protocol.py`)**: A script that reads `schema.json` and automatically generates:
    - Python Pydantic models for the Host (`host/protocol/messages.py`).
-   - C++ Structs and an `ArduinoJson` parser for the Edge (`include/controllers/ProtocolParser.h`).
+   - C++ Structs and an `ArduinoJson` parser for the Edge (`edge/include/controllers/ProtocolParser.h`).
 3. **Build Automation**: PlatformIO executes `generate_protocol.py` as a pre-build hook (`extra_scripts`), guaranteeing the ESP32 firmware is always compiled against the latest schema.
 
 All state and command JSON payloads MUST adhere to this generated structure.
