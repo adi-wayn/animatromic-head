@@ -8,7 +8,7 @@ import os
 
 SCHEMA_PATH = os.path.join(os.path.dirname(__file__), 'schema.json')
 PYTHON_OUT = os.path.join(os.path.dirname(__file__), '..', 'host', 'protocol', 'messages.py')
-CPP_OUT = os.path.join(os.path.dirname(__file__), '..', 'include', 'controllers', 'ProtocolParser.h')
+CPP_OUT = os.path.join(os.path.dirname(__file__), '..', 'edge', 'include', 'controllers', 'ProtocolParser.h')
 
 def load_schema():
     with open(SCHEMA_PATH, 'r') as f:
