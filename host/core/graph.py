@@ -68,7 +68,14 @@ def route_after_agent(state: AgentState):
     last_msg = state["messages"][-1]
     if hasattr(last_msg, "tool_calls") and last_msg.tool_calls:
         logger.info("Graph routing to ACTION state (Tool Execution).")
-        broadcast_phase("SPEAKING")
+        
+        # Dynamically determine the phase based on which tools were used
+        tool_names = [call["name"] for call in last_msg.tool_calls]
+        if "speak" in tool_names:
+            broadcast_phase("SPEAKING")
+        else:
+            broadcast_phase("MOVING")
+            
         return "action_node"
     
     logger.warning("Agent did not use any tools! Routing back to LISTENING.")

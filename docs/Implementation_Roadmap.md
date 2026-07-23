@@ -75,6 +75,12 @@ Due to pending physical audio hardware (INMP441 and MAX98357A), the development 
   - Implement 1500ms TTFB (Time-to-First-Byte) limit -> fallback to Piper TTS if exceeded.
   - *Temporary:* Play TTS audio directly out of PC speakers. Save amplitude envelope data to send to ESP32 for Lip-Sync testing.
 
+- [x] **Task 3.4: Hybrid Architecture & SOLID Compliance [Software]**
+  - Decouple memory management into `MemoryManager`.
+  - Replace deprecated `create_react_agent` with an explicit LangGraph `StateGraph` (Listen -> Think -> Act).
+  - Enforce strict Pydantic JSON schemas over UDP (`send_kinematic_intent`).
+  - Wire Voice Activity Detection (VAD) to trigger immediate `EMERGENCY_STOP` UDP commands to the ESP32.
+
 ### Phase 4: Network Audio Pipeline (Hardware Dependent)
 **Goal:** Install the I2S modules and transition the audio topology from the PC to the ESP32.
 
