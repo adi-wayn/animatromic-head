@@ -42,29 +42,24 @@ class ESP32UDPAdapter:
         """
         High-level API for sending emotional/kinematic intents.
         """
-        payload = {
-            "event_id": str(uuid.uuid4()),
-            "timestamp_ms": int(time.time() * 1000),
-            "cognitive_state": {
-                "emotion_primary": emotion.upper(),
-                "intensity_level": intensity
-            }
-        }
-        success = self.send_raw_json(payload)
+        from host.protocol.messages import create_intent_message
+        msg = create_intent_message(emotion=emotion.upper(), intensity=intensity)
+        success = self.send_raw_json(msg.model_dump())
         if success:
             return f"Successfully sent intent {emotion} with intensity {intensity} to hardware."
         return f"Failed to send intent {emotion} to hardware. Network error."
 
     def emergency_stop(self) -> None:
         """Sends an immediate INTERRUPT command."""
-        self.send_raw_json({"command": "EMERGENCY_STOP"})
+        from host.protocol.messages import create_emergency_stop_message
+        msg = create_emergency_stop_message()
+        self.send_raw_json(msg.model_dump())
         
     def broadcast_phase(self, phase: str) -> None:
         """Broadcasts the current conversational phase."""
-        self.send_raw_json({
-            "command": "PHASE_UPDATE", 
-            "conversational_phase": phase
-        })
+        from host.protocol.messages import create_phase_message
+        msg = create_phase_message(phase=phase)
+        self.send_raw_json(msg.model_dump())
 
 
 # Instantiate the adapter singleton
