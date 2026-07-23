@@ -249,10 +249,14 @@ To satisfy strict real-time responsiveness constraints, the Kinematic Engine ope
 
 ## 6.0 Data Design & Communication Protocols
 
-### 6.1 UDP Audio Payload Structure
-Because this system prioritizes extreme low latency over data integrity (a dropped frame of audio is better than a delayed frame), it strictly uses the **UDP** protocol.
+### 6.1 3-Port UDP Topology & Audio Payload
+Because this system prioritizes extreme low latency over data integrity (a dropped frame of audio is better than a delayed frame), it strictly uses the **UDP** protocol organized into a 3-port topology:
+*   **Port 4210:** Control (JSON payloads).
+*   **Port 4211:** Audio Uplink (Raw PCM, Mic -> Host).
+*   **Port 4212:** Audio Downlink (Raw PCM, Host -> Speaker).
+
 *   **Audio Format:** Raw PCM, 16-bit depth, 16000 Hz sample rate, Mono channel. This is the exact format optimal for the Whisper STT engine, eliminating the need for expensive resampling on the Host.
-*   **Packet Chunking:** Packets are chunked to $\le 1024$ bytes to remain beneath standard Wi-Fi MTU limits, preventing IP fragmentation and packet reassembly overhead.
+*   **Packet Chunking:** Audio packets are chunked to $\le 1024$ bytes to remain beneath standard Wi-Fi MTU limits, preventing IP fragmentation and packet reassembly overhead.
 
 ### 6.2 The Unified Protocol Layer (Single Source of Truth)
 To ensure the Edge (C++) and Host (Python) systems are completely decoupled and never drift out of sync, the protocol is elevated to a first-class layer at the root of the repository (`/protocol`).
@@ -306,6 +310,15 @@ Fired by the WebRTC VAD to immediately halt speech and movement.
 ```json
 {
   "type": "EMERGENCY_STOP",
+  "payload": {}
+}
+```
+
+#### 4. The `TTS_COMPLETE` Payload
+Sent by the Edge to the Host to signal that the TTS audio buffer has finished playing.
+```json
+{
+  "type": "TTS_COMPLETE",
   "payload": {}
 }
 ```
