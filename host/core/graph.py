@@ -4,6 +4,7 @@ from typing import TypedDict, Annotated, Sequence, Literal
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, SystemMessage
 from langgraph.graph import StateGraph, START, END
 from langgraph.graph.message import add_messages
+from langgraph.prebuilt import create_react_agent
 
 from pydantic import BaseModel, Field
 
@@ -70,35 +71,25 @@ def fast_generator_node(state: AgentState) -> AgentState:
 
 def supervisor_node(state: AgentState) -> AgentState:
     """
-    Supervisor (Orchestrator) Pattern: Explicitly binds tools to LLM for reasoning.
+    Supervisor (Orchestrator) Pattern: Uses LangGraph's prebuilt ReAct agent to call tools.
     """
     logger.debug("Executing Supervisor Node...")
     llm_manager = LLMManager()
     llm = llm_manager.get_llm("llama3", temperature=0.2)
     
     tools = [send_kinematic_intent]
-    llm_with_tools = llm.bind_tools(tools)
     
-    sys_prompt = SystemMessage(content="You are an animatronic head. If the user asks you to move or express an emotion, use the send_kinematic_intent tool first, then respond verbally.")
-    messages = [sys_prompt] + state["messages"]
+    # We create a sub-graph react agent using the actively supported LangGraph prebuilt method
+    agent = create_react_agent(llm, tools)
     
-    response = llm_with_tools.invoke(messages)
+    # Run the react agent
+    result = agent.invoke({"messages": state["messages"]})
     
-    # If the LLM decided to use a tool
-    if response.tool_calls:
-        logger.info(f"LLM decided to call tool: {response.tool_calls}")
-        for tool_call in response.tool_calls:
-            if tool_call["name"] == "send_kinematic_intent":
-                args = tool_call["args"]
-                # Execute the tool explicitly
-                send_kinematic_intent.invoke(args)
-                
-        # Follow up LLM call to get verbal response
-        follow_up_msg = SystemMessage(content="Tool executed successfully. Give a short verbal response.")
-        final_response = llm.invoke(messages + [response, follow_up_msg])
-        return {"final_response": final_response.content, "kinematic_intent": "NEUTRAL"}
+    # Extract the final message from the react agent
+    final_message = result["messages"][-1].content
     
-    return {"final_response": response.content, "kinematic_intent": "NEUTRAL"}
+    # Because tools are handled within the react loop, the ESP32 is already called.
+    return {"final_response": final_message, "kinematic_intent": "NEUTRAL"}
 
 def reflection_node(state: AgentState) -> AgentState:
     """
