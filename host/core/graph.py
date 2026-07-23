@@ -4,7 +4,7 @@ from typing import TypedDict, Annotated, Sequence, Literal
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, SystemMessage
 from langgraph.graph import StateGraph, START, END
 from langgraph.graph.message import add_messages
-from langchain.agents import create_agent
+from langgraph.prebuilt import ToolNode, tools_condition
 
 from pydantic import BaseModel, Field
 
@@ -71,25 +71,49 @@ def fast_generator_node(state: AgentState) -> AgentState:
 
 def supervisor_node(state: AgentState) -> AgentState:
     """
-    Supervisor (Orchestrator) Pattern: Uses LangGraph's prebuilt ReAct agent to call tools.
+    Supervisor Node: Reason and decide if a tool is needed.
     """
     logger.debug("Executing Supervisor Node...")
     llm_manager = LLMManager()
     llm = llm_manager.get_llm("llama3", temperature=0.2)
     
     tools = [send_kinematic_intent]
+    llm_with_tools = llm.bind_tools(tools)
     
-    # We create a sub-graph react agent using the new supported create_agent method
-    agent = create_agent(llm, tools)
+    sys_prompt = SystemMessage(content="You are an animatronic head. Use the send_kinematic_intent tool if the user asks you to move or express an emotion.")
+    messages = [sys_prompt] + state["messages"]
     
-    # Run the react agent
-    result = agent.invoke({"messages": state["messages"]})
+    response = llm_with_tools.invoke(messages)
     
-    # Extract the final message from the react agent
-    final_message = result["messages"][-1].content
+    # Return the AI message, including any tool_calls
+    return {"messages": [response]}
+
+# The ToolNode handles executing the tool calls
+tools = [send_kinematic_intent]
+action_node = ToolNode(tools)
+
+def format_output_node(state: AgentState) -> AgentState:
+    """
+    Format Output Node: Runs after the reasoning loop finishes.
+    Extracts the structured final_response and kinematic_intent.
+    """
+    logger.debug("Executing Format Output Node...")
+    llm_manager = LLMManager()
+    llm = llm_manager.get_llm("llama3", format_schema=AnimatronicResponse)
     
-    # Because tools are handled within the react loop, the ESP32 is already called.
-    return {"final_response": final_message, "kinematic_intent": "NEUTRAL"}
+    sys_prompt = SystemMessage(content="You are an animatronic head. You just used tools to handle the user's request. Summarize the outcome in a friendly, conversational way.")
+    messages = [sys_prompt] + state["messages"]
+    
+    response = llm.invoke(messages)
+    
+    try:
+        speech = response.speech
+        emotion = response.emotion
+    except AttributeError:
+        speech = "Done."
+        emotion = "NEUTRAL"
+        
+    return {"final_response": speech, "kinematic_intent": emotion}
 
 def reflection_node(state: AgentState) -> AgentState:
     """
@@ -110,6 +134,8 @@ def build_graph():
     
     workflow.add_node("fast_generator", fast_generator_node)
     workflow.add_node("supervisor", supervisor_node)
+    workflow.add_node("action", action_node)
+    workflow.add_node("format_output", format_output_node)
     workflow.add_node("reflection", reflection_node)
     
     workflow.add_conditional_edges(
@@ -121,8 +147,21 @@ def build_graph():
         }
     )
     
+    # From supervisor, condition on whether tool calls exist
+    workflow.add_conditional_edges(
+        "supervisor",
+        tools_condition,
+        {
+            "tools": "action",
+            "__end__": "format_output"
+        }
+    )
+    
+    # Tools loop back to the supervisor
+    workflow.add_edge("action", "supervisor")
+    
     workflow.add_edge("fast_generator", "reflection")
-    workflow.add_edge("supervisor", "reflection")
+    workflow.add_edge("format_output", "reflection")
     workflow.add_edge("reflection", END)
     
     checkpointer = get_checkpointer()
