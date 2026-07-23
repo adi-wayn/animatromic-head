@@ -1,0 +1,12 @@
+{
+  "messages": {
+    "INTENT": {
+      "emotion_primary": "string",
+      "intensity_level": "float"
+    },
+    "PHASE_UPDATE": {
+      "conversational_phase": "string"
+    },
+    "EMERGENCY_STOP": {}
+  }
+}
