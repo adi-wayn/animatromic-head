@@ -1,6 +1,6 @@
 #include "controllers/ProtocolDispatcher.h"
 #include <Arduino.h>
-#include <ArduinoJson.h>
+#include "controllers/ProtocolParser.h"
 #include "controllers/AnimatronicHead.h"
 #include "controllers/NetworkManager.h"
 
@@ -12,34 +12,40 @@ void jsonParserTask(void *pvParameters) {
     NetworkManager& network = NetworkManager::getInstance();
 
     if (head.isBooted() && network.getNextMessage(incomingJson)) {
-      JsonDocument doc;
-      DeserializationError error = deserializeJson(doc, incomingJson);
+      ParsedMessage msg = ProtocolParser::parse(incomingJson);
       
-      if (!error) {
-        if (doc["command"].is<const char*>() && strcmp(doc["command"], "EMERGENCY_STOP") == 0) {
-          head.setState(SystemState::INTERRUPTED);
-          Serial.println("[Dispatcher] State Changed: INTERRUPTED");
+      if (msg.isValid) {
+        switch (msg.type) {
+            case MessageType::EMERGENCY_STOP:
+                head.setState(SystemState::INTERRUPTED);
+                Serial.println("[Dispatcher] State Changed: INTERRUPTED");
+                break;
+                
+            case MessageType::INTENT: {
+                const char* emotion = msg.payload["emotion_primary"];
+                if (emotion) {
+                    head.executePose(emotion);
+                    Serial.printf("[Dispatcher] Executing Pose: %s\n", emotion);
+                }
+                break;
+            }
+                
+            case MessageType::PHASE_UPDATE: {
+                const char* phase = msg.payload["conversational_phase"];
+                if (phase) {
+                    if (strcmp(phase, "LISTENING") == 0) head.setState(SystemState::IDLE_LISTENING);
+                    else if (strcmp(phase, "SPEAKING") == 0) head.setState(SystemState::SPEAKING_SYNCING);
+                    else if (strcmp(phase, "MOVING") == 0) head.setState(SystemState::IDLE_LISTENING);
+                    Serial.printf("[Dispatcher] Phase Update: %s\n", phase);
+                }
+                break;
+            }
+                
+            case MessageType::UNKNOWN:
+            default:
+                Serial.println("[Dispatcher] Unknown message type received.");
+                break;
         }
-        else if (doc["cognitive_state"].is<JsonObject>()) {
-          head.setState(SystemState::SPEAKING_SYNCING);
-          Serial.println("[Dispatcher] State Changed: SPEAKING_SYNCING");
-          const char* emotion = doc["cognitive_state"]["emotion_primary"];
-          if (emotion) {
-            head.executePose(emotion);
-            Serial.printf("[Dispatcher] Executing Pose: %s\n", emotion);
-          }
-        }
-        // Handle Direct Physical Commands
-        else if (doc["physical_command"].is<const char*>()) {
-          head.setState(SystemState::IDLE_LISTENING);
-          const char* command = doc["physical_command"];
-          if (command) {
-            head.executePose(command);
-            Serial.printf("[Dispatcher] Executing Command: %s\n", command);
-          }
-        }
-      } else {
-        Serial.printf("[Dispatcher] JSON Parse Error: %s\n", error.c_str());
       }
     }
     vTaskDelay(pdMS_TO_TICKS(20));
