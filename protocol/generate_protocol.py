@@ -6,9 +6,19 @@ except NameError:
 import json
 import os
 
-SCHEMA_PATH = os.path.join(os.path.dirname(__file__), 'schema.json')
-PYTHON_OUT = os.path.join(os.path.dirname(__file__), '..', 'host', 'protocol', 'messages.py')
-CPP_OUT = os.path.join(os.path.dirname(__file__), '..', 'edge', 'include', 'controllers', 'ProtocolParser.h')
+# Resolve the protocol/ directory. When run as a PlatformIO SCons pre-build hook,
+# __file__ is not defined — fall back to locating the script relative to the
+# project root (SCons always runs from the PlatformIO project directory, i.e. edge/).
+try:
+    _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+except NameError:
+    # Running inside SCons (PlatformIO pre-build hook).
+    # CWD is the edge/ directory; protocol/ is one level up.
+    _SCRIPT_DIR = os.path.abspath(os.path.join(os.getcwd(), '..', 'protocol'))
+
+SCHEMA_PATH = os.path.join(_SCRIPT_DIR, 'schema.json')
+PYTHON_OUT = os.path.join(_SCRIPT_DIR, '..', 'host', 'protocol', 'messages.py')
+CPP_OUT = os.path.join(_SCRIPT_DIR, '..', 'edge', 'include', 'controllers', 'ProtocolParser.h')
 
 def load_schema():
     with open(SCHEMA_PATH, 'r') as f:
@@ -20,14 +30,33 @@ def generate_python(schema):
         "import time",
         "import uuid",
         "",
+    ]
+
+    # --- Port Constants ---
+    if 'ports' in schema:
+        code.append("# --- Port Constants (auto-generated from schema.json) ---")
+        for port_name, port_value in schema['ports'].items():
+            code.append(f"PORT_{port_name} = {port_value}")
+        code.append("")
+
+    # --- Audio Format Constants ---
+    if 'audio_format' in schema:
+        code.append("# --- Audio Format Constants (auto-generated from schema.json) ---")
+        for key, value in schema['audio_format'].items():
+            code.append(f"AUDIO_{key.upper()} = {value}")
+        code.append("")
+
+    # --- BaseMessage ---
+    code.extend([
         "class BaseMessage(BaseModel):",
         "    type: str",
         "    event_id: str = Field(default_factory=lambda: str(uuid.uuid4()))",
         "    timestamp_ms: int = Field(default_factory=lambda: int(time.time() * 1000))",
         "    payload: dict",
         ""
-    ]
+    ])
     
+    # --- Payload Models ---
     for msg_type, fields in schema['messages'].items():
         if fields:
             class_name = "".join(word.capitalize() for word in msg_type.split('_')) + "Payload"
@@ -40,6 +69,7 @@ def generate_python(schema):
                     code.append(f"    {field_name}: {py_type}")
             code.append("")
     
+    # --- Factory Functions ---
     for msg_type, fields in schema['messages'].items():
         func_name = f"create_{msg_type.lower()}_message"
         if fields:
@@ -67,9 +97,32 @@ def generate_cpp(schema):
         "#include <Arduino.h>",
         "#include <ArduinoJson.h>",
         "",
-        "enum class MessageType {",
-        "    UNKNOWN,"
     ]
+
+    # --- Port Constants ---
+    if 'ports' in schema:
+        code.append("// --- Port Constants (auto-generated from schema.json) ---")
+        for port_name, port_value in schema['ports'].items():
+            code.append(f"constexpr uint16_t PORT_{port_name} = {port_value};")
+        code.append("")
+
+    # --- Audio Format Constants ---
+    if 'audio_format' in schema:
+        code.append("// --- Audio Format Constants (auto-generated from schema.json) ---")
+        type_map = {
+            'sample_rate_hz': 'uint32_t',
+            'bit_depth': 'uint8_t',
+            'channels': 'uint8_t',
+            'chunk_size_bytes': 'uint16_t',
+        }
+        for key, value in schema['audio_format'].items():
+            c_type = type_map.get(key, 'uint16_t')
+            code.append(f"constexpr {c_type} AUDIO_{key.upper()} = {value};")
+        code.append("")
+
+    # --- MessageType Enum ---
+    code.append("enum class MessageType {")
+    code.append("    UNKNOWN,")
     
     for msg_type in schema['messages'].keys():
         code.append(f"    {msg_type},")
