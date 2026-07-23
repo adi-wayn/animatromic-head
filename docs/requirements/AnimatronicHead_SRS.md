@@ -102,9 +102,9 @@ sequenceDiagram
     Host->>Host: LLM Inference (Context + Emotion derivation)
     Host->>Host: TTS Generation
     
-    Note over Host: LLM generates detailed scenario:<br/>{"emotion": "SAD", "scenario": "empathy_downcast",<br/>"intensity": 0.8}
-    Host->>WiFi: Send JSON Context Command
-    WiFi->>Kinematics: Parse JSON -> Execute complex multi-servo pose
+    Note over Host: LLM generates detailed scenario:<br/>{"type": "INTENT", "payload": {"emotion_primary": "SAD", "intensity_level": 0.8}}
+    Host->>WiFi: Send JSON Protocol Envelope
+    WiFi->>Kinematics: Parse JSON Envelope -> Execute complex multi-servo pose
     
     Host->>WiFi: Stream synthesized TTS audio bytes
     WiFi->>AudioOut: Push audio bytes to I2S DMA
@@ -120,7 +120,7 @@ sequenceDiagram
     User->>Mic: "Wait, actually..."
     WiFi->>Host: Stream raw audio bytes
     Host->>Host: VAD Trigger: User is speaking!
-    Host->>WiFi: Send JSON: {"command": "STOP_AUDIO", "scenario": "listening_attentively"}
+    Host->>WiFi: Send JSON Envelope: {"type": "EMERGENCY_STOP", "payload": {}}
     WiFi->>AudioOut: Flush I2S DMA Buffer (Stop speaking)
     WiFi->>Kinematics: Close Jaw, Look up at User
 ```

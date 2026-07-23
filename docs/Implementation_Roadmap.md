@@ -81,6 +81,11 @@ Due to pending physical audio hardware (INMP441 and MAX98357A), the development 
   - Enforce strict Pydantic JSON schemas over UDP (`send_kinematic_intent`).
   - Wire Voice Activity Detection (VAD) to trigger immediate `EMERGENCY_STOP` UDP commands to the ESP32.
 
+- [x] **Task 3.5: Unified Communication Protocol Layer [Software]**
+  - Design a decoupled, unified Protocol Envelope for Host <-> Edge UDP communication.
+  - Implement Pydantic schema validation for standard `INTENT`, `PHASE_UPDATE`, and `EMERGENCY_STOP` payloads.
+  - Formally document the exact JSON structures in the SDD for Edge firmware parsing.
+
 ### Phase 4: Network Audio Pipeline (Hardware Dependent)
 **Goal:** Install the I2S modules and transition the audio topology from the PC to the ESP32.
 
