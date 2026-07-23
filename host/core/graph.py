@@ -4,7 +4,7 @@ from typing import TypedDict, Annotated, Sequence, Literal
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, SystemMessage
 from langgraph.graph import StateGraph, START, END
 from langgraph.graph.message import add_messages
-from langgraph.prebuilt import create_react_agent
+from langchain.agents import create_agent
 
 from pydantic import BaseModel, Field
 
@@ -79,8 +79,8 @@ def supervisor_node(state: AgentState) -> AgentState:
     
     tools = [send_kinematic_intent]
     
-    # We create a sub-graph react agent using the actively supported LangGraph prebuilt method
-    agent = create_react_agent(llm, tools)
+    # We create a sub-graph react agent using the new supported create_agent method
+    agent = create_agent(llm, tools)
     
     # Run the react agent
     result = agent.invoke({"messages": state["messages"]})
