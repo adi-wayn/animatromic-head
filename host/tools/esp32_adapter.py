@@ -3,6 +3,8 @@ import json
 import logging
 from typing import Dict, Any, Optional
 from langchain_core.tools import tool
+from langgraph.prebuilt import InjectedState
+from typing_extensions import Annotated
 
 logger = logging.getLogger(__name__)
 
@@ -56,10 +58,12 @@ class ESP32UDPAdapter:
 _adapter = ESP32UDPAdapter()
 
 @tool
-def send_kinematic_intent(emotion: str, intensity: float = 1.0) -> str:
+def send_kinematic_intent(emotion: str, intensity: float = 1.0, state: Annotated[dict, InjectedState] = None) -> str:
     """
     Send a physical movement or emotional intent to the Animatronic Head hardware.
     Use this tool when the user asks the head to move, express an emotion, or perform a physical action.
     Allowed emotions: HAPPY, SAD, SURPRISED, ANGRY, NEUTRAL, LOOK_LEFT, LOOK_RIGHT, LOOK_UP, LOOK_DOWN.
     """
+    logger.debug(f"Tool Context - Current Graph State Keys: {list(state.keys()) if state else 'None'}")
+    # Here we would use 'state' to read the current physical position to calculate relative movements
     return _adapter.send_intent(emotion, intensity)
