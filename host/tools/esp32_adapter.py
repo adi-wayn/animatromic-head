@@ -15,6 +15,23 @@ from host.protocol.messages import (
     create_emergency_stop_message,
     create_phase_update_message,
 )
+import socket as _socket
+
+# Dynamically resolve the ESP32's IP via mDNS hostname
+ESP32_HOSTNAME = "animatronic-head.local"
+
+def _resolve_esp32_ip() -> str:
+    """Resolve the ESP32's mDNS hostname to an IP address."""
+    try:
+        info = _socket.getaddrinfo(ESP32_HOSTNAME, None, _socket.AF_INET)
+        ip = info[0][4][0]
+        logger.info(f"Resolved {ESP32_HOSTNAME} -> {ip}")
+        return ip
+    except _socket.gaierror:
+        logger.warning(f"Could not resolve {ESP32_HOSTNAME}. Using fallback.")
+        return "192.168.1.100"  # Fallback only if mDNS is unavailable
+
+ESP32_IP = _resolve_esp32_ip()
 
 logger = logging.getLogger(__name__)
 

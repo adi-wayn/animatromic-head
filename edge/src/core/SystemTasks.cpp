@@ -2,6 +2,7 @@
 #include <Arduino.h>
 #include "controllers/AnimatronicHead.h"
 #include "controllers/NetworkManager.h"
+#include "controllers/AudioManager.h"
 #include "hardware/PCA9685_Driver.h"
 
 void kinematicsTask(void *pvParameters) {
@@ -77,3 +78,21 @@ void idleBehaviorTask(void *pvParameters) {
     }
   }
 }
+
+// --- Service 4: Audio Uplink — Mic to Host (Core 0, High Priority) ---
+void audioUplinkTask(void *pvParameters) {
+  (void) pvParameters;
+  AudioManager& audio = AudioManager::getInstance();
+  audio.beginMic();
+
+  uint8_t pcmBuffer[AUDIO_CHUNK_SIZE_BYTES];
+
+  while (true) {
+    size_t bytesRead = audio.readMicChunk(pcmBuffer, AUDIO_CHUNK_SIZE_BYTES);
+    if (bytesRead > 0) {
+      audio.sendToHost(pcmBuffer, bytesRead);
+    }
+    // No vTaskDelay needed — i2s_read blocks on DMA, yielding naturally
+  }
+}
+
