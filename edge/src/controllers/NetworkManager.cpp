@@ -1,5 +1,7 @@
 #include "controllers/NetworkManager.h"
 #include <WiFiManager.h>
+#include <ESPmDNS.h>
+#include "controllers/AudioManager.h"
 
 NetworkManager::NetworkManager() : messageQueue(nullptr) {}
 
@@ -20,6 +22,13 @@ void NetworkManager::begin(uint16_t port) {
         Serial.println(WiFi.localIP());
     }
 
+    // Advertise via mDNS so the Host can find us by hostname
+    if (MDNS.begin("animatronic-head")) {
+        Serial.println("[Network] mDNS responder started: animatronic-head.local");
+    } else {
+        Serial.println("[Network] mDNS FAILED to start.");
+    }
+
     udp.begin(listenPort);
     Serial.printf("[Network] Listening on UDP port %d\n", listenPort);
 }
@@ -27,6 +36,10 @@ void NetworkManager::begin(uint16_t port) {
 void NetworkManager::update() {
     int packetSize = udp.parsePacket();
     if (packetSize) {
+        // Learn the Host's IP from the first control packet we receive
+        if (!AudioManager::getInstance().hasHostAddress()) {
+            AudioManager::getInstance().setHostAddress(udp.remoteIP());
+        }
         int len = udp.read(incomingPacket, sizeof(incomingPacket) - 1);
         if (len > 0) {
             incomingPacket[len] = '\0';
