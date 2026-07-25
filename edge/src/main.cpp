@@ -17,6 +17,7 @@ void setup() {
   xTaskCreatePinnedToCore(idleBehaviorTask, "Idle_Behavior", 4096, NULL, 3, NULL, 1);
   xTaskCreatePinnedToCore(networkTask, "Network", 4096, NULL, 20, NULL, 0);
   xTaskCreatePinnedToCore(audioUplinkTask, "Audio_Uplink", 4096, NULL, 20, NULL, 0);
+  xTaskCreatePinnedToCore(audioDownlinkTask, "Audio_Downlink", 4096, NULL, 20, NULL, 0);
   
   // Create Staggered Boot task (runs once on Core 1, then deletes itself)
   xTaskCreatePinnedToCore(staggeredBootTask, "Boot", 4096, NULL, 2, NULL, 1);

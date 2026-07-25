@@ -6,5 +6,6 @@ void staggeredBootTask(void *pvParameters);
 void networkTask(void *pvParameters);
 void idleBehaviorTask(void *pvParameters);
 void audioUplinkTask(void *pvParameters);
+void audioDownlinkTask(void *pvParameters);
 
 #endif

@@ -41,6 +41,11 @@ void jsonParserTask(void *pvParameters) {
                 break;
             }
                 
+            case MessageType::TTS_COMPLETE:
+                head.setState(SystemState::IDLE_LISTENING);
+                Serial.println("[Dispatcher] TTS_COMPLETE received. State → IDLE_LISTENING.");
+                break;
+                
             case MessageType::UNKNOWN:
             default:
                 Serial.println("[Dispatcher] Unknown message type received.");

@@ -17,6 +17,8 @@ from host.protocol.messages import (
 )
 import socket as _socket
 
+logger = logging.getLogger(__name__)
+
 # Dynamically resolve the ESP32's IP via mDNS hostname
 ESP32_HOSTNAME = "animatronic-head.local"
 
@@ -32,11 +34,6 @@ def _resolve_esp32_ip() -> str:
         return "192.168.1.100"  # Fallback only if mDNS is unavailable
 
 ESP32_IP = _resolve_esp32_ip()
-
-logger = logging.getLogger(__name__)
-
-# Configurable endpoints (these should ideally be pulled from a .env or config file)
-ESP32_IP = "192.168.1.100"  # Placeholder, will be replaced by actual static IP
 
 class ESP32UDPAdapter:
     """

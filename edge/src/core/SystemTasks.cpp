@@ -96,3 +96,22 @@ void audioUplinkTask(void *pvParameters) {
   }
 }
 
+// --- Service 5: Audio Downlink — Host TTS to Speaker (Core 0, High Priority) ---
+void audioDownlinkTask(void *pvParameters) {
+  (void) pvParameters;
+  AudioManager& audio = AudioManager::getInstance();
+  audio.beginSpeaker();
+
+  uint8_t pcmBuffer[AUDIO_CHUNK_SIZE_BYTES];
+
+  while (true) {
+    int bytesReceived = audio.receiveFromHost(pcmBuffer, AUDIO_CHUNK_SIZE_BYTES);
+    if (bytesReceived > 0) {
+      audio.writeToSpeaker(pcmBuffer, bytesReceived);
+      // i2s_write blocks until DMA accepts — natural pacing
+    } else {
+      // No packet available — yield briefly to avoid busy-spinning
+      vTaskDelay(pdMS_TO_TICKS(1));
+    }
+  }
+}
