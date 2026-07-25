@@ -68,6 +68,22 @@ void PoseController::generateOrganicSaccade(uint32_t timeMs) {
     moveEyesTilt(targetY, 100, EASE_OUT_EXPO);
 }
 
+void PoseController::syncJawToAmplitude(float intensity) {
+    // 1. Primary axis (Open/Close)
+    // intensity 0.0 = Closed (maxAngle)
+    // intensity 1.0 = Open (minAngle)
+    double rangeUD = JAW_UD.maxAngle - JAW_UD.minAngle;
+    double targetUD = JAW_UD.maxAngle - (intensity * rangeUD);
+    
+    // Smooth the movement over 15ms (the ~60Hz kinematics update rate)
+    moveJawUD(targetUD, 15, EASE_IN_OUT_SINE);
+    
+    // 2. Secondary axis (Organic texture - LR)
+    // Blend a tiny bit of left/right motion based on intensity for realism
+    double targetLR = JAW_LR.centerAngle + ((intensity * 10.0) - 5.0); // +/- 5 degrees
+    moveJawLR(targetLR, 15, EASE_IN_OUT_SINE);
+}
+
 // --- Basic Directions ---
 
 void PoseController::lookLeft(int durationMs, EasingType easing) {

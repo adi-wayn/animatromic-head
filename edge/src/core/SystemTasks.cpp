@@ -4,11 +4,18 @@
 #include "controllers/NetworkManager.h"
 #include "controllers/AudioManager.h"
 #include "hardware/PCA9685_Driver.h"
+#include <math.h>
 
 void kinematicsTask(void *pvParameters) {
   (void) pvParameters;
   while(true) {
     if (AnimatronicHead::getInstance().isBooted()) {
+      // If we are currently speaking, drive the jaw from audio amplitude
+      if (AnimatronicHead::getInstance().getState() == SystemState::SPEAKING_SYNCING) {
+          float intensity = AudioManager::getInstance().getAmplitude();
+          PoseController::getInstance().syncJawToAmplitude(intensity);
+      }
+
       AnimatronicHead::getInstance().updateKinematics();
     }
     vTaskDelay(pdMS_TO_TICKS(15)); // ~60Hz update loop
@@ -103,14 +110,41 @@ void audioDownlinkTask(void *pvParameters) {
   audio.beginSpeaker();
 
   uint8_t pcmBuffer[AUDIO_CHUNK_SIZE_BYTES];
+  const float RMS_SCALER = 32768.0f; // 16-bit PCM max value
 
   while (true) {
     int bytesReceived = audio.receiveFromHost(pcmBuffer, AUDIO_CHUNK_SIZE_BYTES);
     if (bytesReceived > 0) {
+      // Calculate RMS for Lip-Sync
+      int16_t* samples = (int16_t*)pcmBuffer;
+      int numSamples = bytesReceived / 2;
+      float sumSquares = 0.0f;
+      
+      for (int i = 0; i < numSamples; i++) {
+          float sample = (float)samples[i];
+          sumSquares += sample * sample;
+      }
+      
+      float rms = 0.0f;
+      if (numSamples > 0) {
+          rms = sqrt(sumSquares / numSamples);
+      }
+      
+      // Normalize and boost intensity (same math as Host)
+      float intensity = (rms / RMS_SCALER) * 3.0f;
+      audio.setAmplitude(intensity);
+
       audio.writeToSpeaker(pcmBuffer, bytesReceived);
       // i2s_write blocks until DMA accepts — natural pacing
     } else {
       // No packet available — yield briefly to avoid busy-spinning
+      // Decay amplitude slowly if silence (prevents jaw snapping closed on dropped packets)
+      float currentAmp = audio.getAmplitude();
+      if (currentAmp > 0.01f) {
+          audio.setAmplitude(currentAmp * 0.8f); 
+      } else {
+          audio.setAmplitude(0.0f);
+      }
       vTaskDelay(pdMS_TO_TICKS(1));
     }
   }

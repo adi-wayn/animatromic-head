@@ -18,6 +18,9 @@ public:
     // Organic micro-movements (saccades)
     void generateOrganicSaccade(uint32_t timeMs);
     
+    // Real-time lip sync driven by audio amplitude (0.0 to 1.0)
+    void syncJawToAmplitude(float intensity);
+    
 private:
     PoseController() {}
     
