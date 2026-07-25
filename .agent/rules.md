@@ -23,6 +23,7 @@ This project strictly enforces a tri-layer physical repository structure to ensu
 
 ## 4. Audio Pipeline Protocol
 *   **Topology:** The system strictly uses a 3-port UDP topology over local Wi-Fi (Control: 4210, Uplink: 4211, Downlink: 4212) to prioritize latency over packet safety. Do not implement TCP overhead.
+*   **Dynamic Discovery (No Hardcoded IPs):** The ESP32 and Host must never use hardcoded IP addresses. The Host discovers the ESP32 via mDNS (`animatronic.local`), and the ESP32 latches onto the Host's IP from the first control packet. This ensures network portability.
 *   **Latency SLA:** Total conversational turnaround (STT -> LLM -> TTS) must not exceed 3.0 seconds on average.
 *   **Interruption:** If the Host VAD detects user speech, it must immediately send an `EMERGENCY_STOP` JSON command to the ESP32.
 
