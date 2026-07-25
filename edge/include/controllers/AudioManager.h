@@ -34,10 +34,24 @@ public:
     // Check if we have a valid Host IP to send to
     bool hasHostAddress() const;
 
+    // Initialize I2S1 (speaker) and bind downlink UDP socket
+    void beginSpeaker();
+
+    // Receive one raw PCM chunk from Host via UDP (non-blocking)
+    // Returns bytes received, 0 if no packet available
+    int receiveFromHost(uint8_t* buffer, size_t maxLen);
+
+    // Write a raw PCM chunk to the MAX98357A via I2S1 DMA (blocking)
+    void writeToSpeaker(const uint8_t* data, size_t len);
+
+    // Zero the I2S1 DMA buffer (for EMERGENCY_STOP silence)
+    void flushSpeaker();
+
 private:
     AudioManager();
 
     WiFiUDP uplinkSocket;       // Sends mic audio on port 4211
+    WiFiUDP downlinkSocket;     // Receives TTS audio on port 4212
     IPAddress hostIP;
     bool hostIPKnown = false;
 };

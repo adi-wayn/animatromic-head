@@ -1,15 +1,22 @@
 import io
 import wave
 import time
-import pyaudio
+import json
+import socket as _socket
 import numpy as np
 import logging
 import concurrent.futures
 from typing import Optional
+from scipy.signal import resample as scipy_resample
 
 from .xtts_tts import XTTSStrategy
 from .piper_tts import PiperTTS
-from tools.esp32_adapter import send_kinematic_intent, _adapter
+from tools.esp32_adapter import send_kinematic_intent, _adapter, ESP32_IP
+from host.protocol.messages import (
+    PORT_AUDIO_DOWNLINK, PORT_CONTROL,
+    AUDIO_SAMPLE_RATE_HZ, AUDIO_CHUNK_SIZE_BYTES,
+    create_tts_complete_message,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -17,11 +24,12 @@ class DualTTSManager:
     """
     Manages the XTTS -> Piper fallback strategy and handles
     Lip-Sync playback via RMS amplitude extraction.
+    Audio is streamed to the ESP32 MAX98357A over UDP (port 4212).
     """
     def __init__(self):
         self.xtts = XTTSStrategy()
         self.piper = PiperTTS()
-        self.pyaudio_instance = pyaudio.PyAudio()
+        self.udp_sock = _socket.socket(_socket.AF_INET, _socket.SOCK_DGRAM)
         self.is_interrupted = False
         self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=2)
 
@@ -57,7 +65,7 @@ class DualTTSManager:
             logger.error("Both XTTS and Piper failed to generate audio.")
             return
 
-        # 2. Play Audio and calculate Lip-Sync
+        # 2. Stream Audio to ESP32 and calculate Lip-Sync
         self._play_with_lip_sync(audio_bytes)
         
     def interrupt(self):
@@ -69,54 +77,73 @@ class DualTTSManager:
 
     def _play_with_lip_sync(self, audio_bytes: bytes):
         """
-        Reads the WAV bytes, plays them, calculates RMS volume,
-        and blasts JAW intents to the ESP32.
+        Reads WAV bytes, resamples to 16kHz, streams raw PCM to ESP32
+        via UDP port 4212, and sends JAW lip-sync intents.
         """
         try:
             wav_io = io.BytesIO(audio_bytes)
             with wave.open(wav_io, 'rb') as wf:
-                format_type = self.pyaudio_instance.get_format_from_width(wf.getsampwidth())
                 channels = wf.getnchannels()
-                rate = wf.getframerate()
+                sampwidth = wf.getsampwidth()
+                source_rate = wf.getframerate()
+                raw_pcm = wf.readframes(wf.getnframes())
+
+            # Decode to numpy
+            audio_np = np.frombuffer(raw_pcm, dtype=np.int16).astype(np.float32)
+
+            # Mix to mono if stereo
+            if channels > 1:
+                audio_np = audio_np.reshape(-1, channels).mean(axis=1)
+
+            # Resample to protocol rate (16kHz) if needed
+            if source_rate != AUDIO_SAMPLE_RATE_HZ:
+                num_target_samples = int(len(audio_np) * AUDIO_SAMPLE_RATE_HZ / source_rate)
+                audio_np = scipy_resample(audio_np, num_target_samples)
+                logger.debug(f"Resampled {source_rate}Hz → {AUDIO_SAMPLE_RATE_HZ}Hz")
+
+            # Convert back to int16 PCM
+            pcm_data = audio_np.astype(np.int16).tobytes()
+
+            # Stream in 1024-byte chunks with real-time pacing
+            chunk_duration_sec = AUDIO_CHUNK_SIZE_BYTES / (AUDIO_SAMPLE_RATE_HZ * 2)  # ~0.032s
+            RMS_SCALER = 32768.0
+            dest = (ESP32_IP, PORT_AUDIO_DOWNLINK)
+
+            offset = 0
+            while offset < len(pcm_data) and not self.is_interrupted:
+                chunk = pcm_data[offset:offset + AUDIO_CHUNK_SIZE_BYTES]
                 
-                stream = self.pyaudio_instance.open(
-                    format=format_type,
-                    channels=channels,
-                    rate=rate,
-                    output=True
-                )
+                # Pad last chunk with silence if needed
+                if len(chunk) < AUDIO_CHUNK_SIZE_BYTES:
+                    chunk += b'\x00' * (AUDIO_CHUNK_SIZE_BYTES - len(chunk))
                 
-                chunk_size = 1024
-                data = wf.readframes(chunk_size)
+                # 1. Send chunk to ESP32
+                self.udp_sock.sendto(chunk, dest)
+
+                # 2. Calculate RMS for lip-sync (same logic as before)
+                chunk_np = np.frombuffer(chunk, dtype=np.int16).astype(np.float32)
+                if len(chunk_np) > 0:
+                    rms = np.sqrt(np.mean(np.square(chunk_np)))
+                    intensity = min(1.0, rms / RMS_SCALER * 3.0)
+                    _adapter.send_intent("JAW", intensity=intensity)
+
+                offset += AUDIO_CHUNK_SIZE_BYTES
                 
-                # JAW scaling factor (adjust to make mouth open wider)
-                # Max 16-bit PCM value is 32768
-                RMS_SCALER = 32768.0 
-                
-                while data and not self.is_interrupted:
-                    # 1. Play chunk
-                    stream.write(data)
-                    
-                    # 2. Calculate RMS for lip-sync
-                    audio_np = np.frombuffer(data, dtype=np.int16).astype(np.float32)
-                    if len(audio_np) > 0:
-                        rms = np.sqrt(np.mean(np.square(audio_np)))
-                        # Normalize intensity between 0.0 and 1.0
-                        intensity = min(1.0, rms / RMS_SCALER * 3.0) # Multiply by 3 for sensitivity
-                        
-                        # 3. Dispatch JAW intent
-                        # We use the raw _adapter to avoid LangGraph tool overhead in a fast loop
-                        _adapter.send_intent("JAW", intensity=intensity)
-                    
-                    # Read next chunk
-                    data = wf.readframes(chunk_size)
-                    
-                stream.stop_stream()
-                stream.close()
-                
-                # Close jaw at the end
-                _adapter.send_intent("JAW", intensity=0.0)
-                
+                # 3. Pace to match real-time playback
+                time.sleep(chunk_duration_sec)
+
+            # Close jaw at the end
+            _adapter.send_intent("JAW", intensity=0.0)
+            
+            # Send TTS_COMPLETE to signal end of playback
+            if not self.is_interrupted:
+                msg = create_tts_complete_message()
+                tts_data = json.dumps(msg.model_dump()).encode('utf-8')
+                ctrl_sock = _socket.socket(_socket.AF_INET, _socket.SOCK_DGRAM)
+                ctrl_sock.sendto(tts_data, (ESP32_IP, PORT_CONTROL))
+                ctrl_sock.close()
+                logger.info("Sent TTS_COMPLETE to ESP32.")
+
         except Exception as e:
             logger.error(f"Playback error: {e}")
 
