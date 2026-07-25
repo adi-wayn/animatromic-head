@@ -99,17 +99,17 @@
   - Update `schema.json` and `generate_protocol.py` to act as the single source of truth for port constants and audio formats.
   - Implement the `TTS_COMPLETE` control message.
 
-- [ ] **Task 4.1: Edge Audio Uplink (Microphone) [Both]**
+- [x] **Task 4.1: Edge Audio Uplink (Microphone) [Both]**
   - Install INMP441 on the breadboard.
   - Configure I2S0 DMA in ESP-IDF.
   - Stream chunked raw audio (PCM, 16-bit, 16kHz) over UDP to Python Host. (Remove `pyaudio` dependency from Phase 3).
 
-- [ ] **Task 4.2: Edge Audio Downlink (Speaker) [Both]**
+- [x] **Task 4.2: Edge Audio Downlink (Speaker) [Both]**
   - Install MAX98357A on the breadboard.
   - Configure I2S1 DMA in ESP-IDF.
   - Receive UDP audio chunks from Python Host and push to 4Ω speaker. (Remove PC speaker playback from Phase 3).
 
-- [ ] **Task 4.3: Real-Time Lip Sync & Interruption [Both]**
+- [x] **Task 4.3: Real-Time Lip Sync & Interruption [Both]**
   - Route incoming TTS audio amplitude envelope to Core 1 kinematics to dynamically modulate `JAW_UD` and `JAW_LR`.
   - Finalize VAD `EMERGENCY_STOP` JSON command. If the user speaks, Host sends interrupt -> ESP32 flushes I2S DMA buffer and snaps to `IDLE_LISTENING`.
 
