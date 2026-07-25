@@ -47,6 +47,12 @@ public:
     // Zero the I2S1 DMA buffer (for EMERGENCY_STOP silence)
     void flushSpeaker();
 
+    // Set the current audio playback amplitude (normalized 0.0 to 1.0)
+    void setAmplitude(float intensity);
+
+    // Get the current audio playback amplitude
+    float getAmplitude() const;
+
 private:
     AudioManager();
 
@@ -54,6 +60,10 @@ private:
     WiFiUDP downlinkSocket;     // Receives TTS audio on port 4212
     IPAddress hostIP;
     bool hostIPKnown = false;
+    
+    // 32-bit floats are naturally atomic on ESP32, but we use volatile 
+    // to prevent compiler caching across cores.
+    volatile float currentAmplitude = 0.0f;
 };
 
 #endif

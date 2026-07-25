@@ -3,6 +3,7 @@
 #include "controllers/ProtocolParser.h"
 #include "controllers/AnimatronicHead.h"
 #include "controllers/NetworkManager.h"
+#include "controllers/AudioManager.h"
 
 void jsonParserTask(void *pvParameters) {
   (void) pvParameters;
@@ -18,6 +19,8 @@ void jsonParserTask(void *pvParameters) {
         switch (msg.type) {
             case MessageType::EMERGENCY_STOP:
                 head.setState(SystemState::INTERRUPTED);
+                AudioManager::getInstance().flushSpeaker();
+                PoseController::getInstance().executePose("JAW_CLOSE");
                 Serial.println("[Dispatcher] State Changed: INTERRUPTED");
                 break;
                 

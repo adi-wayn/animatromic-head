@@ -127,3 +127,14 @@ void AudioManager::flushSpeaker() {
     i2s_zero_dma_buffer(I2S_SPK_PORT);
     Serial.println("[AudioManager] Speaker DMA flushed (silence).");
 }
+
+void AudioManager::setAmplitude(float intensity) {
+    // Clamp between 0.0 and 1.0
+    if (intensity < 0.0f) intensity = 0.0f;
+    if (intensity > 1.0f) intensity = 1.0f;
+    currentAmplitude = intensity;
+}
+
+float AudioManager::getAmplitude() const {
+    return currentAmplitude;
+}
