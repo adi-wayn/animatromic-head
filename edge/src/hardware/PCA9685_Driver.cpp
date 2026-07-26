@@ -14,6 +14,7 @@ void initDriver() {
 
   // Start I2C bus
   Wire.begin(I2C_SDA, I2C_SCL);
+  Wire.setClock(400000); // Fast-Mode Plus (400kHz)
 
   // Initialize PCA9685
   pwm.begin();

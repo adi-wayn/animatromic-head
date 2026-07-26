@@ -4,11 +4,14 @@
 #include "controllers/AnimatronicHead.h"
 #include "controllers/NetworkManager.h"
 #include "controllers/AudioManager.h"
+#include "esp_task_wdt.h"
 
 void jsonParserTask(void *pvParameters) {
   (void) pvParameters;
   String incomingJson;
+  ESP_ERROR_CHECK(esp_task_wdt_add(NULL));
   while (true) {
+    ESP_ERROR_CHECK(esp_task_wdt_reset());
     AnimatronicHead& head = AnimatronicHead::getInstance();
     NetworkManager& network = NetworkManager::getInstance();
 

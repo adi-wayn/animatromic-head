@@ -35,16 +35,30 @@ void KinematicEngine::triggerMove(const ServoConfig& config, double targetAngle,
 void KinematicEngine::updateKinematics() {
     uint32_t now = millis();
     
-    // Process all moving servos
+    // Pass 1: Calculate raw deltas and predicted current
+    double rawDeltas[16] = {0};
+    double peakCurrents[16] = {0};
+    
+    peakCurrents[NECK_ONE.channel] = 1.5;
+    peakCurrents[NECK_Y.channel] = 1.5;
+    peakCurrents[NECK_ROLL.channel] = 1.5;
+    peakCurrents[JAW_UD.channel] = 1.0;
+    peakCurrents[JAW_LR.channel] = 1.0;
+    peakCurrents[EYES_X.channel] = 0.5;
+    peakCurrents[EYES_Y.channel] = 0.5;
+    peakCurrents[EYELID_LEFT.channel] = 0.5;
+    peakCurrents[EYELID_RIGHT.channel] = 0.5;
+    
+    double totalPredictedCurrent = 0.0;
+    
     for (int i = 0; i < 16; i++) {
         if (!states[i].isMoving) continue;
         
-        double currentAngle = currentAngles[i];
-        
         uint32_t elapsed = now - states[i].startTimeMs;
+        double currentAngle = states[i].startAngle;
+        
         if (elapsed >= states[i].durationMs) {
             currentAngle = states[i].targetAngle;
-            states[i].isMoving = false;
         } else {
             double t = (double)elapsed / states[i].durationMs;
             double easedT = t;
@@ -53,6 +67,42 @@ void KinematicEngine::updateKinematics() {
             else if (states[i].easingType == EASE_OUT_EXPO) easedT = easeOutExpo(t);
             
             currentAngle = states[i].startAngle + ((states[i].targetAngle - states[i].startAngle) * easedT);
+        }
+        
+        double delta = currentAngle > currentAngles[i] ? currentAngle - currentAngles[i] : currentAngles[i] - currentAngle;
+        rawDeltas[i] = currentAngle - currentAngles[i];
+        
+        double currentDraw = peakCurrents[i];
+        if (delta < 5.0) {
+            currentDraw *= (delta / 5.0);
+        }
+        totalPredictedCurrent += currentDraw;
+    }
+    
+    double scaleFactor = 1.0;
+    if (totalPredictedCurrent > 8.0) {
+        scaleFactor = 8.0 / totalPredictedCurrent;
+    }
+    
+    // Pass 2: Apply scale factor and move
+    for (int i = 0; i < 16; i++) {
+        if (!states[i].isMoving) continue;
+        
+        double finalDelta = rawDeltas[i] * scaleFactor;
+        double newAngle = currentAngles[i] + finalDelta;
+        
+        if (scaleFactor < 1.0) {
+            // Compensate for lost time so the easing curve doesn't jump forward next frame
+            // Assuming ~15ms task delay (from SystemTasks.cpp)
+            uint32_t lostTime = (uint32_t)(15.0 * (1.0 - scaleFactor));
+            states[i].startTimeMs += lostTime;
+            states[i].durationMs += lostTime; // Also expand duration to preserve the curve shape
+        }
+        
+        uint32_t elapsed = now - states[i].startTimeMs;
+        if (elapsed >= states[i].durationMs && scaleFactor >= 0.99) {
+            newAngle = states[i].targetAngle;
+            states[i].isMoving = false;
         }
         
         // Retrieve config bounds
@@ -67,7 +117,7 @@ void KinematicEngine::updateKinematics() {
         else if (i == EYELID_LEFT.channel) { minA = EYELID_LEFT.minAngle; maxA = EYELID_LEFT.maxAngle; }
         else if (i == EYELID_RIGHT.channel) { minA = EYELID_RIGHT.minAngle; maxA = EYELID_RIGHT.maxAngle; }
         
-        safeSetServoAngle(i, currentAngle, minA, maxA);
-        currentAngles[i] = currentAngle;
+        safeSetServoAngle(i, newAngle, minA, maxA);
+        currentAngles[i] = newAngle;
     }
 }
