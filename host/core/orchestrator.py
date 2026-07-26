@@ -1,11 +1,11 @@
 import asyncio
-from audio.vad import VADManager
+from audio.udp_vad_bridge import UDPVADBridge
 from audio.stt import WhisperTranscriber, stt_worker
 from core import graph
 from core.llm_manager import LLMManager
 from core.memory import wipe_memory, get_checkpointer
 from audio.tts.dual_tts_manager import dual_tts_manager
-from adapters.esp32_adapter import send_emergency_stop
+from adapters.esp32_adapter import _adapter, send_emergency_stop
 from loguru import logger
 from langchain_core.messages import HumanMessage
 
@@ -20,7 +20,7 @@ class CognitiveOrchestrator:
         
         # Initialize dependencies
         self.transcriber = WhisperTranscriber("base.en")
-        self.vad_manager = VADManager(self.segment_queue, self.loop)
+        self.vad_manager = UDPVADBridge(_adapter.audio_rx_queue, self.segment_queue)
         
         # Register VAD interrupt callback
         self.vad_manager.register_interrupt_callback(self.handle_interrupt)
@@ -77,16 +77,14 @@ class CognitiveOrchestrator:
 
     async def start(self):
         logger.info("Starting Cognitive Orchestrator...")
-        self.vad_manager.start()
-        
         # Run workers in the background
+        vad_task = asyncio.create_task(self.vad_manager.run())
         stt_task = asyncio.create_task(stt_worker(self.segment_queue, self.transcriber, self.text_queue))
         llm_task = asyncio.create_task(self.llm_worker())
         
         try:
             # Wait indefinitely until cancelled
-            await asyncio.gather(stt_task, llm_task)
+            await asyncio.gather(vad_task, stt_task, llm_task)
         except asyncio.CancelledError:
             logger.info("Cognitive Orchestrator shutting down.")
-            self.vad_manager.stop()
             raise
