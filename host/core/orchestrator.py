@@ -26,11 +26,16 @@ class CognitiveOrchestrator:
         self.vad_manager.register_interrupt_callback(self.handle_interrupt)
 
     def handle_interrupt(self):
-        logger.warning("INTERRUPT EVENT RECEIVED! Aborting current generation and TTS playback.")
-        # Halt audio playback
-        dual_tts_manager.interrupt()
-        # SDD Requirement: Send EMERGENCY_STOP to ESP32 over UDP
-        send_emergency_stop()
+        """Called when VAD detects speech."""
+        
+        # Only interrupt if the bot is actually speaking
+        if dual_tts_manager.is_speaking_active:
+            logger.warning("INTERRUPT EVENT RECEIVED! Aborting current generation and TTS playback.")
+            dual_tts_manager.interrupt()
+            # SDD Requirement: Send EMERGENCY_STOP to ESP32 over UDP
+            send_emergency_stop()
+        else:
+            pass
         
     async def llm_worker(self):
         """

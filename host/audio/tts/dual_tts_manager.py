@@ -4,21 +4,18 @@ import time
 import json
 import socket as _socket
 import numpy as np
-import logging
+from loguru import logger
 import concurrent.futures
 from typing import Optional
 from scipy.signal import resample as scipy_resample
 
 from .xtts_tts import XTTSStrategy
-from .piper_tts import PiperTTS
 from tools.esp32_adapter import send_kinematic_intent, _adapter, ESP32_IP
 from protocol.messages import (
     PORT_AUDIO_DOWNLINK, PORT_CONTROL,
     AUDIO_SAMPLE_RATE_HZ, AUDIO_CHUNK_SIZE_BYTES,
     create_tts_complete_message,
 )
-
-logger = logging.getLogger(__name__)
 
 class DualTTSManager:
     """
@@ -27,53 +24,56 @@ class DualTTSManager:
     Audio is streamed to the ESP32 MAX98357A over UDP (port 4212).
     """
     def __init__(self):
-        self.xtts = XTTSStrategy()
-        self.piper = PiperTTS()
+        self._xtts = None
         self.udp_sock = _socket.socket(_socket.AF_INET, _socket.SOCK_DGRAM)
         self.is_interrupted = False
+        self.is_speaking_active = False
+        self.last_speaking_end_time = 0.0
         self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=2)
+
+    @property
+    def xtts(self):
+        if self._xtts is None:
+            self._xtts = XTTSStrategy()
+        return self._xtts
 
     def speak(self, text: str):
         """
         Public method to be called by the `speak` LangGraph tool.
         """
         self.is_interrupted = False
-        
-        # 1. Start XTTS generation with a 1.5s timeout
-        logger.info("Attempting XTTS generation...")
-        start_time = time.time()
-        
-        audio_bytes = b""
-        future = self.executor.submit(self.xtts.synthesize, text)
+        self.is_speaking_active = True
         
         try:
-            audio_bytes = future.result(timeout=1.5)
-        except concurrent.futures.TimeoutError:
-            logger.warning("XTTS TTFB exceeded 1.5s limit! Falling back to Piper TTS.")
-            self.xtts.stop() # Tell XTTS to abort
-            audio_bytes = self.piper.synthesize(text)
-        except Exception as e:
-            logger.error(f"XTTS Failed: {e}. Falling back to Piper TTS.")
-            audio_bytes = self.piper.synthesize(text)
+            # 1. Start XTTS generation with a 1.5s timeout
+            logger.info("Attempting XTTS generation...")
             
-        if not audio_bytes:
-            # If XTTS returned empty (e.g. not loaded), fallback to Piper
-            logger.info("XTTS returned empty. Falling back to Piper TTS.")
-            audio_bytes = self.piper.synthesize(text)
+            audio_bytes = b""
+            future = self.executor.submit(self.xtts.synthesize, text)
             
-        if not audio_bytes:
-            logger.error("Both XTTS and Piper failed to generate audio.")
-            return
+            try:
+                audio_bytes = future.result(timeout=60.0)
+            except concurrent.futures.TimeoutError:
+                logger.warning("XTTS TTFB exceeded 60.0s limit! Generation aborted.")
+                self.xtts.stop() # Tell XTTS to abort
+            except Exception as e:
+                logger.error(f"XTTS Failed: {e}.")
+                
+            if not audio_bytes:
+                logger.error("XTTS failed to generate audio.")
+                return
 
-        # 2. Stream Audio to ESP32 and calculate Lip-Sync
-        self._play_with_lip_sync(audio_bytes)
-        
+            # 2. Stream Audio to ESP32 and calculate Lip-Sync
+            self._play_with_lip_sync(audio_bytes)
+        finally:
+            self.is_speaking_active = False
+            self.last_speaking_end_time = time.time()
+            
     def interrupt(self):
         """Called by VAD when user speaks."""
         logger.info("DualTTSManager interrupted!")
         self.is_interrupted = True
         self.xtts.stop()
-        self.piper.stop()
 
     def _play_with_lip_sync(self, audio_bytes: bytes):
         """
