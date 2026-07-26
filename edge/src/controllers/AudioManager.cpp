@@ -53,7 +53,21 @@ size_t AudioManager::readMicChunk(uint8_t* buffer, size_t bufferSize) {
 void AudioManager::sendToHost(const uint8_t* data, size_t len) {
     if (!hostIPKnown) return;  // Silently skip until we know who to send to
 
+    uint32_t timestamp = millis();
+    
+    // Header format: 2 bytes seq_num, 4 bytes timestamp
+    uint8_t header[6];
+    header[0] = (uplinkSeqNum >> 8) & 0xFF;
+    header[1] = uplinkSeqNum & 0xFF;
+    header[2] = (timestamp >> 24) & 0xFF;
+    header[3] = (timestamp >> 16) & 0xFF;
+    header[4] = (timestamp >> 8) & 0xFF;
+    header[5] = timestamp & 0xFF;
+    
+    uplinkSeqNum++;
+
     uplinkSocket.beginPacket(hostIP, PORT_AUDIO_UPLINK);
+    uplinkSocket.write(header, 6);
     uplinkSocket.write(data, len);
     uplinkSocket.endPacket();
 }
@@ -66,6 +80,10 @@ void AudioManager::setHostAddress(IPAddress ip) {
 
 bool AudioManager::hasHostAddress() const {
     return hostIPKnown;
+}
+
+IPAddress AudioManager::getHostAddress() const {
+    return hostIP;
 }
 
 void AudioManager::beginSpeaker() {

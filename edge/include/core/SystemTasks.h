@@ -7,5 +7,6 @@ void networkTask(void *pvParameters);
 void idleBehaviorTask(void *pvParameters);
 void audioUplinkTask(void *pvParameters);
 void audioDownlinkTask(void *pvParameters);
+void telemetryTask(void *pvParameters);
 
 #endif
