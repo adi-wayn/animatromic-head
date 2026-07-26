@@ -9,8 +9,8 @@ import json
 
 from .llm_manager import LLMManager
 from .memory_manager import MemoryManager
-from tools.esp32_adapter import send_kinematic_intent, broadcast_phase, send_emergency_stop
-from tools.speaking import speak
+from adapters.esp32_adapter import send_kinematic_intent, broadcast_phase, send_emergency_stop
+from adapters.speaking import speak
 
 text_queue: asyncio.Queue = None
 
