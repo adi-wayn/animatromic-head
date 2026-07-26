@@ -7,7 +7,6 @@ from typing import Annotated, TypedDict
 import asyncio
 
 from .llm_manager import LLMManager
-from .memory import get_checkpointer
 from .memory_manager import MemoryManager
 from tools.esp32_adapter import send_kinematic_intent, broadcast_phase
 from tools.speaking import speak
@@ -39,7 +38,7 @@ async def agent_node(state: AgentState):
     logger.info("Graph entered REASONING state.")
     
     llm_manager = LLMManager()
-    llm = llm_manager.get_llm("llama3", temperature=0.7)
+    llm = llm_manager.get_llm("llama3.1", temperature=0.7)
     tools = [speak, send_kinematic_intent]
     
     llm_with_tools = llm.bind_tools(tools)
@@ -81,8 +80,10 @@ def route_after_agent(state: AgentState):
     logger.warning("Agent did not use any tools! Routing back to LISTENING.")
     return "listen_node"
 
-def build_graph():
-    """Compiles the LangGraph Hybrid State Machine."""
+def build_graph(checkpointer):
+    """
+    Compiles the LangGraph Hybrid State Machine.
+    """
     workflow = StateGraph(AgentState)
     
     # The tools node from langgraph.prebuilt automatically executes the tools defined
@@ -109,10 +110,7 @@ def build_graph():
     # We will route back to agent_node to allow it to evaluate the tool output.
     workflow.add_edge("action_node", "agent_node")
     
-    graph = workflow.compile(checkpointer=get_checkpointer())
+    graph = workflow.compile(checkpointer=checkpointer)
     logger.info("Hybrid State Machine Graph compiled successfully.")
     return graph
-
-# Singleton instance
-agentic_graph = build_graph()
 

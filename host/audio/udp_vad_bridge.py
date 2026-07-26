@@ -3,7 +3,7 @@ import numpy as np
 import torch
 import collections
 from loguru import logger
-from host.protocol.messages import AUDIO_SAMPLE_RATE_HZ
+from protocol.messages import AUDIO_SAMPLE_RATE_HZ
 
 class UDPVADBridge:
     """

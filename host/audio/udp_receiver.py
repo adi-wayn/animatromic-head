@@ -1,6 +1,6 @@
 import asyncio
 from loguru import logger
-from host.protocol.messages import PORT_AUDIO_UPLINK, AUDIO_CHUNK_SIZE_BYTES
+from protocol.messages import PORT_AUDIO_UPLINK, AUDIO_CHUNK_SIZE_BYTES
 
 class UDPAudioReceiver(asyncio.DatagramProtocol):
     """
