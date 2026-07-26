@@ -5,7 +5,7 @@ from core import graph
 from core.llm_manager import LLMManager
 from core.memory import wipe_memory, get_checkpointer
 from audio.tts.dual_tts_manager import dual_tts_manager
-from tools.esp32_adapter import send_emergency_stop
+from adapters.esp32_adapter import send_emergency_stop
 from loguru import logger
 from langchain_core.messages import HumanMessage
 
