@@ -1,21 +1,20 @@
 import os
 import sqlite3
 import logging
-from langgraph.checkpoint.sqlite import SqliteSaver
+from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 
 logger = logging.getLogger(__name__)
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "data", "memory.db")
 
-def get_checkpointer() -> SqliteSaver:
+def get_checkpointer():
     """
-    Returns a configured SqliteSaver for LangGraph state persistence.
+    Returns an async context manager for AsyncSqliteSaver.
     Ensures the data directory exists.
     """
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
-    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
-    logger.info(f"Initialized SQLite Checkpointer at {DB_PATH}")
-    return SqliteSaver(conn)
+    logger.info(f"Initializing Async SQLite Checkpointer at {DB_PATH}")
+    return AsyncSqliteSaver.from_conn_string(DB_PATH)
 
 def wipe_memory():
     """Wipes the local SQLite memory database."""

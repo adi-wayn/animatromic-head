@@ -9,7 +9,7 @@ from langgraph.prebuilt import InjectedState
 from typing_extensions import Annotated
 from pydantic import BaseModel, Field
 
-from host.protocol.messages import (
+from protocol.messages import (
     PORT_CONTROL,
     create_intent_message,
     create_emergency_stop_message,

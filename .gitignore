@@ -7,6 +7,10 @@
 __pycache__/
 *.pyc
 .env
+host/models/
+
+# Database
+data/
 
 # MacOS
 .DS_Store

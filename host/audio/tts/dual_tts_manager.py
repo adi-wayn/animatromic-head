@@ -12,7 +12,7 @@ from scipy.signal import resample as scipy_resample
 from .xtts_tts import XTTSStrategy
 from .piper_tts import PiperTTS
 from tools.esp32_adapter import send_kinematic_intent, _adapter, ESP32_IP
-from host.protocol.messages import (
+from protocol.messages import (
     PORT_AUDIO_DOWNLINK, PORT_CONTROL,
     AUDIO_SAMPLE_RATE_HZ, AUDIO_CHUNK_SIZE_BYTES,
     create_tts_complete_message,

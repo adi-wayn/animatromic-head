@@ -2,9 +2,8 @@ import asyncio
 from audio.vad import VADManager
 from audio.stt import WhisperTranscriber, stt_worker
 from core import graph
-from core.graph import agentic_graph
 from core.llm_manager import LLMManager
-from core.memory import wipe_memory
+from core.memory import wipe_memory, get_checkpointer
 from audio.tts.dual_tts_manager import dual_tts_manager
 from tools.esp32_adapter import send_emergency_stop
 from loguru import logger
@@ -49,18 +48,20 @@ class CognitiveOrchestrator:
         # but LangGraph requires an initial state if we aren't resuming.
         # Let's just start the loop. The `listen_node` will block asynchronously.
         
-        while True:
-            logger.debug("Invoking Hybrid State Machine...")
-            
-            try:
-                # We start the graph. It goes START -> listen_node -> blocks on text_queue
-                await agentic_graph.ainvoke({"messages": []}, config=config)
-                logger.debug("Graph execution completed turn. Restarting loop...")
-            except Exception as e:
-                logger.error(f"Graph execution failed: {e}")
-            
-            # Small yield to prevent CPU pinning if graph errors out immediately
-            await asyncio.sleep(0.1)
+        async with get_checkpointer() as checkpointer:
+            agentic_graph = graph.build_graph(checkpointer)
+            while True:
+                logger.debug("Invoking Hybrid State Machine...")
+                
+                try:
+                    # We start the graph. It goes START -> listen_node -> blocks on text_queue
+                    await agentic_graph.ainvoke({"messages": []}, config=config)
+                    logger.debug("Graph execution completed turn. Restarting loop...")
+                except Exception as e:
+                    logger.error(f"Graph execution failed: {e}")
+                
+                # Small yield to prevent CPU pinning if graph errors out immediately
+                await asyncio.sleep(0.1)
 
     async def start(self):
         logger.info("Starting Cognitive Orchestrator...")
