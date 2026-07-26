@@ -103,7 +103,7 @@ async def behavior_node(state: AgentState):
     # 3. Dispatch Speech
     if text_to_speak:
         broadcast_phase("SPEAKING")
-        await speak(text_to_speak)
+        speak(text_to_speak)
         
     return {"current_emotion": emotion}
 
