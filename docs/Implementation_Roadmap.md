@@ -113,6 +113,17 @@
   - Route incoming TTS audio amplitude envelope to Core 1 kinematics to dynamically modulate `JAW_UD` and `JAW_LR`.
   - Finalize VAD `EMERGENCY_STOP` JSON command. If the user speaks, Host sends interrupt -> ESP32 flushes I2S DMA buffer and snaps to `IDLE_LISTENING`.
 
+### Phase 5: Simulation & Virtualization
+**Goal:** Establish a pristine testing environment that mimics the physical hardware on the Host side without hardware dependencies.
+
+- [x] **Task 5.1: Live Audio Proxy Script (`test/live_esp32_proxy.py`)**
+  - Uses `pyaudio` to mimic ESP32 INMP441 uplink and MAX98357A downlink.
+  - Receives kinematic intents for fast console validation.
+
+- [x] **Task 5.2: Wokwi ESP32 Setup (`test/wokwi/`)**
+  - Basic diagram with ESP32 and PCA9685 driving a single SG90 servo.
+  - Strictly enforce: *NO TRASH FILES IN CORE DIRECTORIES (`host/` or `edge/`). All tests go in `test/`.*
+
 ---
 
 ## 3. Maintenance & Expansion Notes

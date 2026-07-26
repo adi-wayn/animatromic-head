@@ -23,7 +23,13 @@ logger = logging.getLogger(__name__)
 ESP32_HOSTNAME = "animatronic-head.local"
 
 def _resolve_esp32_ip() -> str:
-    """Resolve the ESP32's mDNS hostname to an IP address."""
+    """Resolve the ESP32's mDNS hostname to an IP address, with env var override."""
+    import os
+    env_ip = os.environ.get("ESP32_IP")
+    if env_ip:
+        logger.info(f"Using ESP32_IP from environment: {env_ip}")
+        return env_ip
+        
     try:
         info = _socket.getaddrinfo(ESP32_HOSTNAME, None, _socket.AF_INET)
         ip = info[0][4][0]
