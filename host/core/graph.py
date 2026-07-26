@@ -1,20 +1,28 @@
 from loguru import logger
-from langchain_core.messages import BaseMessage, SystemMessage, HumanMessage
+from langchain_core.messages import BaseMessage, SystemMessage, HumanMessage, AIMessage
 from langgraph.graph import StateGraph, START, END
-from langgraph.prebuilt import ToolNode
 from langgraph.graph.message import add_messages
-from typing import Annotated, TypedDict
+from typing import Annotated, TypedDict, Optional
+from pydantic import BaseModel, Field
 import asyncio
+import json
 
 from .llm_manager import LLMManager
 from .memory_manager import MemoryManager
-from tools.esp32_adapter import send_kinematic_intent, broadcast_phase
+from tools.esp32_adapter import send_kinematic_intent, broadcast_phase, send_emergency_stop
 from tools.speaking import speak
-# The orchestrator will inject the text_queue here
+
 text_queue: asyncio.Queue = None
+
+class CognitiveOutput(BaseModel):
+    emotion: str = Field(description="The primary emotion of the response, e.g., 'SAD', 'HAPPY', 'ANGRY', 'SURPRISED', 'NEUTRAL'")
+    response_text: str = Field(description="The words you want to say out loud to the user. Keep it brief. Empty string if no speech.")
 
 class AgentState(TypedDict):
     messages: Annotated[list, add_messages]
+    robot_physical_state: dict
+    current_emotion: str
+    active_goal: str
 
 async def listen_node(state: AgentState):
     """Deterministic node that blocks until the user speaks."""
@@ -24,8 +32,14 @@ async def listen_node(state: AgentState):
     if text_queue is None:
         raise ValueError("text_queue was never initialized in graph.py!")
     
+    # Block until we get STT from the queue
     text = await text_queue.get()
     text_queue.task_done()
+    
+    if text == "__INTERRUPT__":
+        logger.warning("listen_node intercepted an __INTERRUPT__ token. Routing to interrupt_node.")
+        from langgraph.types import Command
+        return Command(goto="interrupt_node")
     
     logger.debug(f"Graph received STT text: {text}")
     return {"messages": [HumanMessage(content=text)]}
@@ -35,110 +49,73 @@ async def agent_node(state: AgentState):
     logger.info("Graph entered REASONING state.")
     
     llm_manager = LLMManager()
-    llm = llm_manager.get_llm("llama3.1", temperature=0.7)
-    tools = [speak, send_kinematic_intent]
-    # Do not use bind_tools for this model as it's unreliable. Ask for strict JSON.
-    llm = llm_manager.get_llm("llama3.1", temperature=0.7)
+    # Temperature 0 for strict JSON adherence
+    llm = llm_manager.get_llm("llama3.1", temperature=0.0)
+    structured_llm = llm.with_structured_output(CognitiveOutput, method="json_schema")
     
-    # We must prepend the system message manually since we aren't using create_react_agent
     system_prompt = SystemMessage(
         content=(
             "You are a scary, haunted skull animatronic. Your persona is terrifying, ghostly, and sarcastic. "
-            "You MUST interact with the physical world by returning a strictly formatted JSON object. "
-            "Respond ONLY with valid JSON. Do not include any other text, markdown formatting, or explanation. "
-            "Example format:\n"
-            '{"speak": "the words you want to say out loud", "intent": "JAW", "intensity": 0.8}\n'
-            "If you only want to move without speaking, set \"speak\" to an empty string. "
-            "If you only want to speak without a specific intent, omit the intent fields or set to null."
+            "Respond to the user with a specific emotion and brief text."
         )
     )
     
-    # Ensure system prompt is the first message before trimming
     messages_to_trim = [system_prompt] + state["messages"]
     trimmed_messages = MemoryManager.trim_context(messages_to_trim)
     
-    response = await llm.ainvoke(trimmed_messages)
-    
-    # Parse the JSON response manually to extract tool calls
-    import json
-    import uuid
-    tool_calls = []
-    
     try:
-        clean_content = response.content.strip()
-        if clean_content.startswith("```json"):
-            clean_content = clean_content[7:]
-        if clean_content.startswith("```"):
-            clean_content = clean_content[3:]
-        if clean_content.endswith("```"):
-            clean_content = clean_content[:-3]
-        clean_content = clean_content.strip()
+        result: CognitiveOutput = await structured_llm.ainvoke(trimmed_messages)
         
-        import re
-        clean_content = re.sub(r'\bNone\b', 'null', clean_content)
-        parsed = json.loads(clean_content)
+        # We store the LLM's response as an AIMessage so history is maintained
+        ai_msg = AIMessage(content=result.response_text, additional_kwargs={"emotion": result.emotion})
         
-        # Handle Llama 3.1's natural OpenAI-style tool call format
-        if isinstance(parsed, dict) and "name" in parsed and "parameters" in parsed:
-            tool_calls.append({
-                "name": parsed["name"],
-                "args": parsed["parameters"],
-                "id": str(uuid.uuid4())
-            })
-        elif isinstance(parsed, list):
-            for item in parsed:
-                if isinstance(item, dict) and "name" in item and "parameters" in item:
-                    tool_calls.append({
-                        "name": item["name"],
-                        "args": item["parameters"],
-                        "id": str(uuid.uuid4())
-                    })
-        else:
-            # Handle our custom format
-            if parsed.get("speak"):
-                tool_calls.append({
-                    "name": "speak",
-                    "args": {"text": parsed["speak"]},
-                    "id": str(uuid.uuid4())
-                })
-                
-            if parsed.get("intent") and parsed.get("intensity") is not None:
-                tool_calls.append({
-                    "name": "send_kinematic_intent",
-                    "args": {"emotion_primary": parsed["intent"], "intensity_level": float(parsed["intensity"])},
-                    "id": str(uuid.uuid4())
-                })
-            
-        response.content = clean_content  # keeping raw json for visibility
-        if tool_calls:
-            response.additional_kwargs["tool_calls"] = [] # Just satisfying langgraph structure
-            response.tool_calls = tool_calls
+        return {
+            "messages": [ai_msg],
+            "current_emotion": result.emotion
+        }
     except Exception as e:
-        logger.error(f"Failed to parse LLM JSON: {e}. Raw content: {response.content}")
-        
-    return {"messages": [response]}
+        logger.error(f"Structured Output Parsing Failed: {e}")
+        return {"messages": [AIMessage(content="I am malfunctioning...")]}
 
-def route_after_agent(state: AgentState):
-    """Routes based on whether the LLM decided to use tools."""
+async def behavior_node(state: AgentState):
+    """The Deterministic Behavior Engine."""
+    logger.info("Graph entered BEHAVIOR state.")
+    
+    # Extract emotion and text from the latest state
+    emotion = state.get("current_emotion", "NEUTRAL")
     last_msg = state["messages"][-1]
+    text_to_speak = last_msg.content if isinstance(last_msg, AIMessage) else ""
     
-    if last_msg.content:
-        print(f"\n[LLM RAW OUTPUT]: {last_msg.content}\n")
-        
-    if hasattr(last_msg, "tool_calls") and last_msg.tool_calls:
-        logger.info("Graph routing to ACTION state (Tool Execution).")
-        
-        # Dynamically determine the phase based on which tools were used
-        tool_names = [call["name"] for call in last_msg.tool_calls]
-        if "speak" in tool_names:
-            broadcast_phase("SPEAKING")
-        else:
-            broadcast_phase("MOVING")
-            
-        return "action_node"
+    # 1. Hardware State Verification (Firewall)
+    phys_state = state.get("robot_physical_state", {})
+    cpu_load = phys_state.get("cpu_load", 0)
     
-    logger.warning("Agent did not use any tools! Routing back to LISTENING.")
-    return "listen_node"
+    # Example logic: If CPU load is too high, limit physical intensity
+    intensity = 0.8
+    if cpu_load > 85:
+        logger.warning("Behavior Engine: CPU load high on Edge, clamping intensity!")
+        intensity = 0.3
+        
+    # 2. Dispatch Movement Intent
+    broadcast_phase("MOVING")
+    send_kinematic_intent(emotion, intensity)
+    
+    # 3. Dispatch Speech
+    if text_to_speak:
+        broadcast_phase("SPEAKING")
+        await speak(text_to_speak)
+        
+    return {"current_emotion": emotion}
+
+async def interrupt_node(state: AgentState):
+    """Handles unexpected interruptions."""
+    logger.warning("Graph entered INTERRUPT state.")
+    send_emergency_stop()
+    
+    return {
+        "current_emotion": "SURPRISED",
+        "active_goal": "AWAIT_INSTRUCTION"
+    }
 
 def build_graph(checkpointer):
     """
@@ -146,31 +123,20 @@ def build_graph(checkpointer):
     """
     workflow = StateGraph(AgentState)
     
-    # The tools node from langgraph.prebuilt automatically executes the tools defined
-    tools = [speak, send_kinematic_intent]
-    action_node = ToolNode(tools)
-    
     workflow.add_node("listen_node", listen_node)
     workflow.add_node("agent_node", agent_node)
-    workflow.add_node("action_node", action_node)
+    workflow.add_node("behavior_node", behavior_node)
+    workflow.add_node("interrupt_node", interrupt_node)
     
+    # Edges
     workflow.add_edge(START, "listen_node")
     workflow.add_edge("listen_node", "agent_node")
+    workflow.add_edge("agent_node", "behavior_node")
+    workflow.add_edge("behavior_node", "listen_node")
     
-    workflow.add_conditional_edges(
-        "agent_node", 
-        route_after_agent, 
-        {"action_node": "action_node", "listen_node": "listen_node"}
-    )
-    
-    # After executing the tools, it can go back to the agent to observe tool output
-    # or immediately cycle back to listening. A React agent usually goes back to the agent.
-    # To keep it strict Perceive->Think->Act, we can just route back to listen_node,
-    # but the LLM might need to see the tool success messages.
-    # We will route back to agent_node to allow it to evaluate the tool output.
-    workflow.add_edge("action_node", "agent_node")
+    # After interruption, ease into neutral by going back to listen
+    workflow.add_edge("interrupt_node", "listen_node")
     
     graph = workflow.compile(checkpointer=checkpointer)
-    logger.info("Hybrid State Machine Graph compiled successfully.")
+    logger.info("Hybrid State Machine Graph (Phase 3) compiled successfully.")
     return graph
-

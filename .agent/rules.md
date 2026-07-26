@@ -10,7 +10,7 @@ This project strictly enforces a tri-layer physical repository structure to ensu
 *   **Constraint:** The ESP32 MUST NOT run any AI models locally due to SRAM limits.
 
 ## 2. Hardware Safety & Kinematics (ESP32)
-*   **Deterministic Authority:** The Python LLM is non-deterministic and can only output *abstract intents* (e.g., `{"emotion": "SAD"}`). The ESP32 holds the `PoseDictionary` and translates intents into mathematically safe PWM angles.
+*   **Deterministic Authority:** The Python LLM is non-deterministic and can only output *abstract intents* via the `CognitiveOutput` Pydantic model (e.g., `{"emotion": "SAD"}`). The host-side `behavior_node` dynamically translates these into physical intents, and the ESP32 holds the `PoseDictionary` to translate intents into mathematically safe PWM angles.
 *   **Power Management:** The 10A power supply can brownout the ESP32 3.3V logic if all 9 servos initialize at once. **You must stage/stagger servo initialization upon boot.**
 *   **Jaw Restraints:** The Jaw L/R (Left/Right) servo has a known physical binding defect. Do not rely heavily on lateral jaw movement; clamp its PWM boundaries tightly and blend it into other major expressions.
 *   **Right Eyelid Defect:** The right eyelid servo experiences slipping. Mathematically mirror or blend its movements with the left eyelid rather than moving it independently.
@@ -40,6 +40,11 @@ This project strictly enforces a tri-layer physical repository structure to ensu
 *   **Meyers Singletons:** All core subsystems (`KinematicEngine`, `PoseController`, `AnimatronicHead`, `NetworkManager`) MUST be implemented as thread-safe Meyers Singletons (`static ClassName& getInstance()`). **No global variables** are permitted for these systems.
 *   **Facade Pattern:** The `AnimatronicHead` class must act as a pure, lightweight Facade. It delegates intent to the `PoseController` and math/hardware-driving to the `KinematicEngine`. It must not contain raw servo logic.
 *   **Strict Primitive Composition:** The `PoseController` uses a two-tier abstraction. Macros (like `expressSad`) and mid-level commands (like `lookLeft`) **MUST NEVER** interface directly with the `KinematicEngine`. They must exclusively compose behavior from a strict, private set of atomic Base Primitives (e.g., `moveNeckPan`, `moveEyelidLeft`). This guarantees hardware defect mitigations (like Jaw L/R clamping) applied at the atomic level cannot be bypassed.
+
+## 5.5. Cognitive Architecture (Host LangGraph)
+*   **No Prebuilt ToolNodes:** Do not use `langgraph.prebuilt.ToolNode`. The LLM node (`agent_node`) must use `with_structured_output` and a strict Pydantic model (`CognitiveOutput`) to prevent JSON parsing crashes.
+*   **Behavior Engine Isolation:** The LLM does NOT execute hardware tools. The `behavior_node` intercepts the `CognitiveOutput`, verifies the `robot_physical_state` (e.g., `cpu_load`), and manually emits `send_kinematic_intent` and `speak()`.
+*   **Graph Interruptions:** Mid-speech interruptions are handled by injecting an `__INTERRUPT__` token into the `text_queue`, which routes the graph to `interrupt_node` to trigger an `EMERGENCY_STOP` payload and reset the emotion state.
 
 ## 6. Strict "No Mocks" Policy
 *   **ABSOLUTELY NO MOCKS ALLOWED:** Under no circumstances should any code in this project use "mocks" or fake data. All tools, connections, sensors, MCP implementations, and data pipelines must be fully functional and real. If a hardware component is not available, write the real production logic (e.g., real UDP sockets to the ESP32) to ensure the system architecture is robust and immediately ready for hardware integration. Any AI agent that proposes a "mock" violates this foundational rule.

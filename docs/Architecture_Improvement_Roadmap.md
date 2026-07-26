@@ -69,19 +69,19 @@ This is the actionable, step-by-step roadmap to fix the "heart of the system". T
 ### Phase 3: The True Cognitive Architecture (The Brain)
 *These tasks rewrite `graph.py` to follow strict SOLID and OOP principles, turning it into a real state machine.*
 
-- [ ] **Task 3.1: Robust LLM Structured Output & Parsing**
+- [x] **Task 3.1: Robust LLM Structured Output & Parsing**
   - **Action:** Fix the `json.loads` crash seen in the logs.
   - **Details:** Implement `pydantic` models for the LLM output tool calls, utilizing LangChain's `with_structured_output` instead of manual regex and JSON stripping.
-- [ ] **Task 3.2: Redefine the `AgentState`**
+- [x] **Task 3.2: Redefine the `AgentState`**
   - **Action:** Expand the LangGraph `AgentState` `TypedDict`.
   - **Details:** It must include `robot_physical_state` (from telemetry), `current_emotion`, `active_goal`, and `conversation_history`.
-- [ ] **Task 3.3: Implement the Behavior Engine Node**
+- [x] **Task 3.3: Implement the Behavior Engine Node**
   - **Action:** Decouple LLM reasoning from hardware mapping.
   - **Details:** Create a new LangGraph node `behavior_node`. The LLM `agent_node` now only outputs `{"emotion": "SAD", "text": "I feel lonely"}`. The `behavior_node` intercepts this, looks at `robot_physical_state`, and translates it into physical intents (e.g., "Look down, slow speed").
-- [ ] **Task 3.4: Preemptive Interruption Handling**
+- [x] **Task 3.4: Preemptive Interruption Handling**
   - **Action:** Make the LangGraph interruptible.
   - **Details:** When `UDPVADBridge` detects speech, it must inject an `INTERRUPT` event into the graph. The graph must have an `interrupt_node` that stops TTS generation, sends `EMERGENCY_STOP` to the Edge, and clears the active goal.
-- [ ] **Task 3.5: Fix Graph Looping State Bug**
+- [x] **Task 3.5: Fix Graph Looping State Bug**
   - **Action:** Address the `REASONING -> ACTION -> REASONING` infinite loop seen in logs.
   - **Details:** Modify `route_after_agent` to explicitly route to `listen_node` if a tool call was invalid or empty, rather than blindly bouncing back to the agent node without new human input.
 
