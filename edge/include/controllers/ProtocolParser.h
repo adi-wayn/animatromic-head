@@ -8,12 +8,14 @@
 constexpr uint16_t PORT_CONTROL = 4210;
 constexpr uint16_t PORT_AUDIO_UPLINK = 4211;
 constexpr uint16_t PORT_AUDIO_DOWNLINK = 4212;
+constexpr uint16_t PORT_TELEMETRY = 4213;
 
 // --- Audio Format Constants (auto-generated from schema.json) ---
 constexpr uint32_t AUDIO_SAMPLE_RATE_HZ = 16000;
 constexpr uint8_t AUDIO_BIT_DEPTH = 16;
 constexpr uint8_t AUDIO_CHANNELS = 1;
 constexpr uint16_t AUDIO_CHUNK_SIZE_BYTES = 1024;
+constexpr uint16_t AUDIO_HEADER_SIZE_BYTES = 6;
 
 enum class MessageType {
     UNKNOWN,
@@ -21,6 +23,7 @@ enum class MessageType {
     PHASE_UPDATE,
     EMERGENCY_STOP,
     TTS_COMPLETE,
+    TELEMETRY,
 };
 
 struct ParsedMessage {
@@ -53,6 +56,7 @@ public:
         if (typeStr == "PHASE_UPDATE") { result.type = MessageType::PHASE_UPDATE; }
         if (typeStr == "EMERGENCY_STOP") { result.type = MessageType::EMERGENCY_STOP; }
         if (typeStr == "TTS_COMPLETE") { result.type = MessageType::TTS_COMPLETE; }
+        if (typeStr == "TELEMETRY") { result.type = MessageType::TELEMETRY; }
         
         if (doc["payload"].is<JsonObject>()) {
             result.payload = doc["payload"];
