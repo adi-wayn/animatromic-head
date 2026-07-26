@@ -62,7 +62,15 @@ def generate_python(schema):
             class_name = "".join(word.capitalize() for word in msg_type.split('_')) + "Payload"
             code.append(f"class {class_name}(BaseModel):")
             for field_name, field_type in fields.items():
-                py_type = "str" if field_type == "string" else field_type
+                if field_type == "string":
+                    py_type = "str"
+                elif field_type == "int":
+                    py_type = "int"
+                elif field_type == "array of floats":
+                    py_type = "list[float]"
+                else:
+                    py_type = field_type
+
                 if py_type == "float":
                     code.append(f"    {field_name}: float = 1.0")
                 else:
@@ -73,7 +81,19 @@ def generate_python(schema):
     for msg_type, fields in schema['messages'].items():
         func_name = f"create_{msg_type.lower()}_message"
         if fields:
-            args = ", ".join([f"{k}: str" if v == "string" else f"{k}: float = 1.0" for k, v in fields.items()])
+            args_list = []
+            for k, v in fields.items():
+                if v == "string":
+                    args_list.append(f"{k}: str")
+                elif v == "int":
+                    args_list.append(f"{k}: int")
+                elif v == "array of floats":
+                    args_list.append(f"{k}: list[float]")
+                elif v == "float":
+                    args_list.append(f"{k}: float = 1.0")
+                else:
+                    args_list.append(f"{k}: Any")
+            args = ", ".join(args_list)
             class_name = "".join(word.capitalize() for word in msg_type.split('_')) + "Payload"
             kwargs = ", ".join([f"{k}={k}" for k in fields.keys()])
             code.append(f"def {func_name}({args}) -> BaseMessage:")
