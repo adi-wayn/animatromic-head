@@ -1,13 +1,9 @@
 import socket
 import json
-import logging
+from loguru import logger
 import uuid
 import time
 from typing import Dict, Any, Optional
-from langchain_core.tools import tool
-from langgraph.prebuilt import InjectedState
-from typing_extensions import Annotated
-from pydantic import BaseModel, Field
 
 from protocol.messages import (
     PORT_CONTROL,
@@ -16,8 +12,6 @@ from protocol.messages import (
     create_phase_update_message,
 )
 import socket as _socket
-
-logger = logging.getLogger(__name__)
 
 # Dynamically resolve the ESP32's IP via mDNS hostname
 ESP32_HOSTNAME = "animatronic-head.local"
@@ -88,18 +82,12 @@ class ESP32UDPAdapter:
 # Instantiate the adapter singleton
 _adapter = ESP32UDPAdapter()
 
-class CognitiveIntentSchema(BaseModel):
-    emotion_primary: str = Field(description="The primary emotion (e.g., SAD, HAPPY, SURPRISED, ANGRY, NEUTRAL, LOOK_LEFT, LOOK_RIGHT)")
-    intensity_level: float = Field(default=1.0, description="Float 0.0 to 1.0 representing emotion intensity")
-
-@tool("send_kinematic_intent", args_schema=CognitiveIntentSchema)
-def send_kinematic_intent(emotion_primary: str, intensity_level: float = 1.0, state: Annotated[dict, InjectedState] = None) -> str:
+def send_kinematic_intent(emotion_primary: str, intensity_level: float = 1.0) -> str:
     """
     Send a physical movement or emotional intent to the Animatronic Head hardware.
     Use this tool when you want the head to move or express an emotion physically.
     Allowed emotions: HAPPY, SAD, SURPRISED, ANGRY, NEUTRAL, LOOK_LEFT, LOOK_RIGHT, LOOK_UP, LOOK_DOWN.
     """
-    logger.debug(f"Tool Context - Current Graph State Keys: {list(state.keys()) if state else 'None'}")
     return _adapter.send_intent(emotion_primary, intensity_level)
 
 def broadcast_phase(phase: str):
