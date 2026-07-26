@@ -91,10 +91,10 @@ This is the actionable, step-by-step roadmap to fix the "heart of the system". T
 - [x] **Task 4.1: Unit Tests for UDPVADBridge**
   - **Action:** Create `tests/unit/test_udp_vad_bridge.py`.
   - **Details:** Mock incoming UDP packets with out-of-order sequence numbers to verify packet-dropping logic (Task 2.1).
-- [ ] **Task 4.2: Integration Tests for Behavior Node**
+- [x] **Task 4.2: Integration Tests for Behavior Node**
   - **Action:** Add `tests/integration/test_behavior_node.py`.
   - **Details:** Feed mock telemetry data and mock LLM emotions into the new Behavior Engine to verify it translates intents correctly without passing invalid angles.
-- [ ] **Task 4.3: Graph E2E Testing**
+- [x] **Task 4.3: Graph E2E Testing**
   - **Action:** Expand `test_orchestrator.py` or `test_graph.py`.
   - **Details:** Simulate a full conversation flow, including a VAD interruption mid-TTS, asserting the graph routes correctly to the `interrupt_node`.
 
