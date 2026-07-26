@@ -2,13 +2,15 @@
   "ports": {
     "CONTROL": 4210,
     "AUDIO_UPLINK": 4211,
-    "AUDIO_DOWNLINK": 4212
+    "AUDIO_DOWNLINK": 4212,
+    "TELEMETRY": 4213
   },
   "audio_format": {
     "sample_rate_hz": 16000,
     "bit_depth": 16,
     "channels": 1,
-    "chunk_size_bytes": 1024
+    "chunk_size_bytes": 1024,
+    "header_size_bytes": 6
   },
   "messages": {
     "INTENT": {
@@ -19,6 +21,10 @@
       "conversational_phase": "string"
     },
     "EMERGENCY_STOP": {},
-    "TTS_COMPLETE": {}
+    "TTS_COMPLETE": {},
+    "TELEMETRY": {
+      "angles": "array of floats",
+      "cpu_load": "int"
+    }
   }
 }

@@ -34,6 +34,9 @@ public:
     // Check if we have a valid Host IP to send to
     bool hasHostAddress() const;
 
+    // Get the Host IP Address
+    IPAddress getHostAddress() const;
+
     // Initialize I2S1 (speaker) and bind downlink UDP socket
     void beginSpeaker();
 
@@ -60,6 +63,7 @@ private:
     WiFiUDP downlinkSocket;     // Receives TTS audio on port 4212
     IPAddress hostIP;
     bool hostIPKnown = false;
+    uint16_t uplinkSeqNum = 0;
     
     // 32-bit floats are naturally atomic on ESP32, but we use volatile 
     // to prevent compiler caching across cores.

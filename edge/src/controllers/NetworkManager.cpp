@@ -36,10 +36,9 @@ void NetworkManager::begin(uint16_t port) {
 void NetworkManager::update() {
     int packetSize = udp.parsePacket();
     if (packetSize) {
-        // Learn the Host's IP from the first control packet we receive
-        if (!AudioManager::getInstance().hasHostAddress()) {
-            AudioManager::getInstance().setHostAddress(udp.remoteIP());
-        }
+        // Dynamically latch onto the Host IP on EVERY valid control packet
+        AudioManager::getInstance().setHostAddress(udp.remoteIP());
+        
         int len = udp.read(incomingPacket, sizeof(incomingPacket) - 1);
         if (len > 0) {
             incomingPacket[len] = '\0';

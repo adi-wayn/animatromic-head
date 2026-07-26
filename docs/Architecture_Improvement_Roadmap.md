@@ -56,13 +56,13 @@ This is the actionable, step-by-step roadmap to fix the "heart of the system". T
 ### Phase 2: Protocol Reliability (The Nervous System)
 *These tasks fix the silent failures in the communication bridge.*
 
-- [ ] **Task 2.1: UDP Sequence Numbering & Synchronization**
+- [x] **Task 2.1: UDP Sequence Numbering & Synchronization**
   - **Action:** Update `protocol/schema.json` to include `seq_num` and `timestamp`.
   - **Details:** Run `generate_protocol.py`. Modify `UDPVADBridge` on the Host to buffer and re-order audio chunks, dropping packets that are too old to prevent STT corruption.
-- [ ] **Task 2.2: Edge-to-Host Telemetry (Closed Loop)**
+- [x] **Task 2.2: Edge-to-Host Telemetry (Closed Loop)**
   - **Action:** Implement a 10Hz telemetry uplink.
   - **Details:** The ESP32 must transmit `{"type": "TELEMETRY", "angles": [...], "cpu_load": 45}` to the Host. The Host must save this to the global state.
-- [ ] **Task 2.3: Dynamic IP Latching Fix**
+- [x] **Task 2.3: Dynamic IP Latching Fix**
   - **Action:** Fix `NetworkManager.cpp`.
   - **Details:** Ensure `hostIP` updates on every valid control packet, not just the first one, allowing Host PC restarts without breaking the connection.
 

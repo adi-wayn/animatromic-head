@@ -154,3 +154,24 @@ void audioDownlinkTask(void *pvParameters) {
     }
   }
 }
+
+// --- Service 6: Edge-to-Host Telemetry (Core 1, Low Priority) ---
+void telemetryTask(void *pvParameters) {
+  (void) pvParameters;
+  WiFiUDP telemetrySocket;
+  
+  while (true) {
+    if (AudioManager::getInstance().hasHostAddress()) {
+      IPAddress hostIP = AudioManager::getInstance().getHostAddress();
+      
+      String telemetry = "{\"type\":\"TELEMETRY\",\"angles\":[],\"cpu_load\":";
+      telemetry += String(xPortGetFreeHeapSize());
+      telemetry += "}";
+
+      telemetrySocket.beginPacket(hostIP, 4213);
+      telemetrySocket.print(telemetry);
+      telemetrySocket.endPacket();
+    }
+    vTaskDelay(pdMS_TO_TICKS(100)); // 10Hz
+  }
+}
