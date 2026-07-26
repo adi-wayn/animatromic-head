@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include "core/SystemTasks.h"
 #include "controllers/ProtocolDispatcher.h"
+#include "esp_task_wdt.h"
 
 void setup() {
   Serial.begin(115200);
@@ -9,6 +10,13 @@ void setup() {
   Serial.println("\n\n-----------------------------------");
   Serial.println("SYSTEM BOOTING... (115200 Baud)");
   Serial.println("-----------------------------------\n");
+
+  esp_task_wdt_config_t twdt_config = {
+      .timeout_ms = 3000,
+      .idle_core_mask = (1 << 0) | (1 << 1),
+      .trigger_panic = true
+  };
+  ESP_ERROR_CHECK(esp_task_wdt_init(&twdt_config));
 
   // Initialize Isolated Services
   // Singletons will auto-instantiate on their first use inside these tasks.

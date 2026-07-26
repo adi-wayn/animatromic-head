@@ -15,11 +15,16 @@ This project strictly enforces a tri-layer physical repository structure to ensu
 *   **Jaw Restraints:** The Jaw L/R (Left/Right) servo has a known physical binding defect. Do not rely heavily on lateral jaw movement; clamp its PWM boundaries tightly and blend it into other major expressions.
 *   **Right Eyelid Defect:** The right eyelid servo experiences slipping. Mathematically mirror or blend its movements with the left eyelid rather than moving it independently.
 
-## 3. Real-Time Concurrency (FreeRTOS)
+## 3. Real-Time Concurrency & Safety (FreeRTOS)
 *   **Task Pinning:** 
     *   **Core 0 (High Priority):** Reserved exclusively for Wi-Fi, UDP streams, and I2S Audio DMA. Never block this core.
     *   **Core 1 (Medium Priority):** Reserved for JSON parsing, kinematic calculations, and I2C PCA9685 commands.
 *   **No Blocking:** Never use `delay()` in FreeRTOS tasks. Use `vTaskDelay(pdMS_TO_TICKS(ms))`.
+*   **Task Watchdog Timer (TWDT):** All long-running tasks (`kinematicsTask`, `jsonParserTask`, `networkTask`) MUST be subscribed to the TWDT (`esp_task_wdt_add`) and regularly fed (`esp_task_wdt_reset`) to trigger kernel panics instead of silent zombie locks if the I2C bus hangs.
+*   **I2C Optimizations:** The PCA9685 I2C bus must operate in Fast-Mode Plus (`Wire.setClock(400000)`) to minimize Core 1 Mutex contention during kinematic calculations.
+
+## 3.5. Dynamic Current Budgeting (Kinematics)
+*   The `KinematicEngine` MUST actively predict peak current draw per frame based on angular deltas. If the sum of all servo currents exceeds **8.0A**, it must linearly scale back the `easedT` velocities for all servos to prevent logic brownouts on the 10A power supply.
 
 ## 4. Audio Pipeline Protocol
 *   **Topology:** The system strictly uses a 3-port UDP topology over local Wi-Fi (Control: 4210, Uplink: 4211, Downlink: 4212) to prioritize latency over packet safety. Do not implement TCP overhead.
@@ -39,3 +44,11 @@ This project strictly enforces a tri-layer physical repository structure to ensu
 *   **`main` is READ-ONLY:** You must NEVER, NEVER, EVER write or commit code to the `main` branch. 
 *   **Workflow Enforcement:** You MUST strictly follow the `agentic-task-workflow` skill (all 16 steps) every single time you work on a task.
 *   **Documentation Maintenance:** You MUST continually update `AGENT.md`, `docs/`, and `.agent/` files at the end of your workflow so that future agents do not repeat mistakes. This is a hard-coded mandate.
+
+## 8. Agentic Proactivity & Autonomy
+*   **You are a Principal Autonomous Agent, NOT a passive chatbot.** Do not wait for the user to hand-hold you through technical steps. You must operate with maximum autonomy.
+*   **Use Your Skills & Tools:** You are equipped with powerful tools (e.g., MCP servers, search tools, bash commands). Proactively `search_web` for documentation (like FreeRTOS watchdog APIs or ESP32 limitations) before asking the user.
+*   **Use Sub-Agents Extensively:** If a task requires deep research, a massive code refactor, or exploring a dense documentation page, you MUST invoke sub-agents (via `invoke_subagent`) to handle it in parallel so you don't lose your main context. Do not do all the heavy lifting yourself in a single thread.
+*   **Create Skills:** If you encounter a repetitive workflow or solve a complex problem, proactively use the `workflow-skill-creator` or write bash/python scripts to automate it. You do not need permission to create a skill.
+*   **Act Decisively:** If you encounter a bug, fix it. If you need a script, write and execute it.
+*   **Force Alignment:** If requirements are ambiguous, proactively prompt the user to use the `/grill-me` command to force an interactive alignment session before you write code.

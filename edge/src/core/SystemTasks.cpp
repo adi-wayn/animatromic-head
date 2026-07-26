@@ -5,10 +5,13 @@
 #include "controllers/AudioManager.h"
 #include "hardware/PCA9685_Driver.h"
 #include <math.h>
+#include "esp_task_wdt.h"
 
 void kinematicsTask(void *pvParameters) {
   (void) pvParameters;
+  ESP_ERROR_CHECK(esp_task_wdt_add(NULL));
   while(true) {
+    ESP_ERROR_CHECK(esp_task_wdt_reset());
     if (AnimatronicHead::getInstance().isBooted()) {
       // If we are currently speaking, drive the jaw from audio amplitude
       if (AnimatronicHead::getInstance().getState() == SystemState::SPEAKING_SYNCING) {
@@ -57,7 +60,9 @@ void networkTask(void *pvParameters) {
   (void) pvParameters;
   NetworkManager& network = NetworkManager::getInstance();
   network.begin();
+  ESP_ERROR_CHECK(esp_task_wdt_add(NULL));
   while (true) {
+    ESP_ERROR_CHECK(esp_task_wdt_reset());
     network.update();
     vTaskDelay(pdMS_TO_TICKS(5));
   }
