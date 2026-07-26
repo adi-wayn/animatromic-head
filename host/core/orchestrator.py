@@ -32,8 +32,15 @@ class CognitiveOrchestrator:
         if dual_tts_manager.is_speaking_active:
             logger.warning("INTERRUPT EVENT RECEIVED! Aborting current generation and TTS playback.")
             dual_tts_manager.interrupt()
+            
             # SDD Requirement: Send EMERGENCY_STOP to ESP32 over UDP
             send_emergency_stop()
+            
+            # Inject interrupt token into the graph's queue to trigger interrupt_node
+            try:
+                self.text_queue.put_nowait("__INTERRUPT__")
+            except asyncio.QueueFull:
+                pass
         else:
             pass
         

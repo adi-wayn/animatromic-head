@@ -29,7 +29,7 @@ class PhaseUpdatePayload(BaseModel):
     conversational_phase: str
 
 class TelemetryPayload(BaseModel):
-    angles: array of floats
+    angles: list[float]
     cpu_load: int
 
 def create_intent_message(emotion_primary: str, intensity_level: float = 1.0) -> BaseMessage:
@@ -50,7 +50,7 @@ def create_emergency_stop_message() -> BaseMessage:
 def create_tts_complete_message() -> BaseMessage:
     return BaseMessage(type="TTS_COMPLETE", payload={})
 
-def create_telemetry_message(angles: float = 1.0, cpu_load: float = 1.0) -> BaseMessage:
+def create_telemetry_message(angles: list[float], cpu_load: int) -> BaseMessage:
     return BaseMessage(
         type="TELEMETRY",
         payload=TelemetryPayload(angles=angles, cpu_load=cpu_load).model_dump()
