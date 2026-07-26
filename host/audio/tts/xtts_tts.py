@@ -1,11 +1,16 @@
 import os
 import io
 import wave
-import logging
+import torch
+from loguru import logger
 from typing import Optional
 from .base import TTSStrategy
+from TTS.api import TTS
+from TTS.tts.configs.xtts_config import XttsConfig
+from TTS.tts.models.xtts import XttsAudioConfig, XttsArgs
 
-logger = logging.getLogger(__name__)
+
+
 
 class XTTSStrategy(TTSStrategy):
     """
@@ -27,8 +32,20 @@ class XTTSStrategy(TTSStrategy):
             device = "mps" if torch.backends.mps.is_available() else "cpu"
             logger.info(f"Loading XTTS v2 on device: {device}...")
             
-            # Load the model
-            self.tts = TTS("tts_models/multilingual/multi-dataset/xtts_v2").to(device)
+            # Patch torch.load temporarily to bypass weights_only=True limitation in PyTorch 2.6
+            original_load = torch.load
+            
+            def safe_load(*args, **kwargs):
+                kwargs['weights_only'] = False
+                return original_load(*args, **kwargs)
+                
+            torch.load = safe_load
+            try:
+                # Load the model
+                self.tts = TTS("tts_models/multilingual/multi-dataset/xtts_v2").to(device)
+            finally:
+                torch.load = original_load
+                
             logger.info("XTTS v2 loaded successfully.")
             
         except Exception as e:

@@ -1,4 +1,4 @@
-import logging
+from loguru import logger
 from langchain_core.messages import BaseMessage, SystemMessage, HumanMessage
 from langgraph.graph import StateGraph, START, END
 from langgraph.prebuilt import ToolNode
@@ -10,9 +10,6 @@ from .llm_manager import LLMManager
 from .memory_manager import MemoryManager
 from tools.esp32_adapter import send_kinematic_intent, broadcast_phase
 from tools.speaking import speak
-
-logger = logging.getLogger(__name__)
-
 # The orchestrator will inject the text_queue here
 text_queue: asyncio.Queue = None
 
@@ -40,18 +37,19 @@ async def agent_node(state: AgentState):
     llm_manager = LLMManager()
     llm = llm_manager.get_llm("llama3.1", temperature=0.7)
     tools = [speak, send_kinematic_intent]
-    
-    llm_with_tools = llm.bind_tools(tools)
+    # Do not use bind_tools for this model as it's unreliable. Ask for strict JSON.
+    llm = llm_manager.get_llm("llama3.1", temperature=0.7)
     
     # We must prepend the system message manually since we aren't using create_react_agent
     system_prompt = SystemMessage(
         content=(
             "You are a scary, haunted skull animatronic. Your persona is terrifying, ghostly, and sarcastic. "
-            "You MUST use your tools to interact with the physical world. "
-            "When you reply verbally, call `speak(text)` and `send_kinematic_intent(emotion)` AT THE SAME TIME (in parallel) "
-            "so your physical body moves in sync while your voice is heard. "
-            "HOWEVER, you can also move WITHOUT speaking (e.g. idle movements, looking around, reacting silently) by ONLY calling `send_kinematic_intent(emotion)`. "
-            "Never respond with just plain text. ALWAYS use your tools to act, whether speaking, moving, or both."
+            "You MUST interact with the physical world by returning a strictly formatted JSON object. "
+            "Respond ONLY with valid JSON. Do not include any other text, markdown formatting, or explanation. "
+            "Example format:\n"
+            '{"speak": "the words you want to say out loud", "intent": "JAW", "intensity": 0.8}\n'
+            "If you only want to move without speaking, set \"speak\" to an empty string. "
+            "If you only want to speak without a specific intent, omit the intent fields or set to null."
         )
     )
     
@@ -59,12 +57,74 @@ async def agent_node(state: AgentState):
     messages_to_trim = [system_prompt] + state["messages"]
     trimmed_messages = MemoryManager.trim_context(messages_to_trim)
     
-    response = await llm_with_tools.ainvoke(trimmed_messages)
+    response = await llm.ainvoke(trimmed_messages)
+    
+    # Parse the JSON response manually to extract tool calls
+    import json
+    import uuid
+    tool_calls = []
+    
+    try:
+        clean_content = response.content.strip()
+        if clean_content.startswith("```json"):
+            clean_content = clean_content[7:]
+        if clean_content.startswith("```"):
+            clean_content = clean_content[3:]
+        if clean_content.endswith("```"):
+            clean_content = clean_content[:-3]
+        clean_content = clean_content.strip()
+        
+        import re
+        clean_content = re.sub(r'\bNone\b', 'null', clean_content)
+        parsed = json.loads(clean_content)
+        
+        # Handle Llama 3.1's natural OpenAI-style tool call format
+        if isinstance(parsed, dict) and "name" in parsed and "parameters" in parsed:
+            tool_calls.append({
+                "name": parsed["name"],
+                "args": parsed["parameters"],
+                "id": str(uuid.uuid4())
+            })
+        elif isinstance(parsed, list):
+            for item in parsed:
+                if isinstance(item, dict) and "name" in item and "parameters" in item:
+                    tool_calls.append({
+                        "name": item["name"],
+                        "args": item["parameters"],
+                        "id": str(uuid.uuid4())
+                    })
+        else:
+            # Handle our custom format
+            if parsed.get("speak"):
+                tool_calls.append({
+                    "name": "speak",
+                    "args": {"text": parsed["speak"]},
+                    "id": str(uuid.uuid4())
+                })
+                
+            if parsed.get("intent") and parsed.get("intensity") is not None:
+                tool_calls.append({
+                    "name": "send_kinematic_intent",
+                    "args": {"emotion_primary": parsed["intent"], "intensity_level": float(parsed["intensity"])},
+                    "id": str(uuid.uuid4())
+                })
+            
+        response.content = clean_content  # keeping raw json for visibility
+        if tool_calls:
+            response.additional_kwargs["tool_calls"] = [] # Just satisfying langgraph structure
+            response.tool_calls = tool_calls
+    except Exception as e:
+        logger.error(f"Failed to parse LLM JSON: {e}. Raw content: {response.content}")
+        
     return {"messages": [response]}
 
 def route_after_agent(state: AgentState):
     """Routes based on whether the LLM decided to use tools."""
     last_msg = state["messages"][-1]
+    
+    if last_msg.content:
+        print(f"\n[LLM RAW OUTPUT]: {last_msg.content}\n")
+        
     if hasattr(last_msg, "tool_calls") and last_msg.tool_calls:
         logger.info("Graph routing to ACTION state (Tool Execution).")
         
