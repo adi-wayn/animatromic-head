@@ -42,7 +42,8 @@ async def listen_node(state: AgentState):
         return Command(goto="interrupt_node")
     
     logger.debug(f"Graph received STT text: {text}")
-    return {"messages": [HumanMessage(content=text)]}
+    from langgraph.types import Command
+    return Command(goto="agent_node", update={"messages": [HumanMessage(content=text)]})
 
 async def agent_node(state: AgentState):
     """The Probabilistic LLM Brain."""
@@ -130,7 +131,6 @@ def build_graph(checkpointer):
     
     # Edges
     workflow.add_edge(START, "listen_node")
-    workflow.add_edge("listen_node", "agent_node")
     workflow.add_edge("agent_node", "behavior_node")
     workflow.add_edge("behavior_node", "listen_node")
     
