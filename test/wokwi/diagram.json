@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "author": "Antigravity",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "board-esp32-devkit-v1", "id": "esp", "top": 0, "left": 0, "attrs": {} },
+    { "type": "wokwi-pca9685", "id": "pca", "top": -50, "left": 150, "attrs": {} },
+    { "type": "wokwi-servo", "id": "servo1", "top": -100, "left": 300, "attrs": {} }
+  ],
+  "connections": [
+    [ "esp:TX0", "$serialMonitor:RX", "", [] ],
+    [ "esp:RX0", "$serialMonitor:TX", "", [] ],
+    [ "esp:22", "pca:SCL", "green", [ "v0" ] ],
+    [ "esp:21", "pca:SDA", "blue", [ "v0" ] ],
+    [ "esp:5V", "pca:VCC", "red", [ "v0" ] ],
+    [ "esp:GND", "pca:GND", "black", [ "v0" ] ],
+    [ "pca:PWM0", "servo1:PWM", "yellow", [ "v0" ] ],
+    [ "pca:V+", "servo1:V+", "red", [ "v0" ] ],
+    [ "pca:GND", "servo1:GND", "black", [ "v0" ] ]
+  ]
+}
