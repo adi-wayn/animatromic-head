@@ -3,6 +3,7 @@ import json
 from loguru import logger
 import uuid
 import time
+import threading
 from typing import Dict, Any, Optional
 
 from protocol.messages import (
@@ -30,8 +31,8 @@ def _resolve_esp32_ip() -> str:
         logger.info(f"Resolved {ESP32_HOSTNAME} -> {ip}")
         return ip
     except _socket.gaierror:
-        logger.warning(f"Could not resolve {ESP32_HOSTNAME}. Using fallback.")
-        return "192.168.1.100"  # Fallback only if mDNS is unavailable
+        logger.warning(f"Could not resolve {ESP32_HOSTNAME}. Using fallback simulator IP (127.0.0.1).")
+        return "127.0.0.1"  # Fallback to local 3D simulator
 
 ESP32_IP = _resolve_esp32_ip()
 
@@ -46,6 +47,36 @@ class ESP32UDPAdapter:
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         # Non-blocking or short timeout to prevent hanging the event loop
         self.sock.settimeout(0.5)
+        self._listener_thread = None
+        self.audio_rx_queue = None
+
+    def start_audio_rx(self, loop, queue):
+        if self._listener_thread is not None:
+            return
+        self.audio_rx_queue = queue
+        
+        from protocol.messages import PORT_AUDIO_UPLINK
+        
+        def _listen():
+            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            try:
+                sock.bind(("0.0.0.0", PORT_AUDIO_UPLINK))
+                logger.info(f"UDP Audio Uplink bound on 0.0.0.0:{PORT_AUDIO_UPLINK}")
+            except Exception as e:
+                logger.error(f"Could not bind audio uplink: {e}")
+                return
+                
+            while True:
+                try:
+                    data, addr = sock.recvfrom(2048)
+                    # Strip 6-byte header according to protocol
+                    pcm_data = data[6:] 
+                    loop.call_soon_threadsafe(self.audio_rx_queue.put_nowait, pcm_data)
+                except Exception as e:
+                    pass
+                    
+        self._listener_thread = threading.Thread(target=_listen, daemon=True)
+        self._listener_thread.start()
 
     def send_raw_json(self, payload: Dict[str, Any]) -> bool:
         """Sends raw JSON payload to the ESP32 over UDP."""

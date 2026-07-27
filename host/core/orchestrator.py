@@ -20,7 +20,14 @@ class CognitiveOrchestrator:
         
         # Initialize dependencies
         self.transcriber = WhisperTranscriber("base.en")
-        self.vad_manager = UDPVADBridge(_adapter.audio_rx_queue, self.segment_queue)
+        
+        audio_rx_queue = asyncio.Queue()
+        _adapter.start_audio_rx(self.loop, audio_rx_queue)
+        self.vad_manager = UDPVADBridge(audio_rx_queue, self.segment_queue)
+        
+        # PRELOAD: Force XTTS to load into RAM now so the first response is instantaneous
+        logger.info("Preloading XTTS model to eliminate first-time latency...")
+        _ = dual_tts_manager.xtts
         
         # Register VAD interrupt callback
         self.vad_manager.register_interrupt_callback(self.handle_interrupt)
