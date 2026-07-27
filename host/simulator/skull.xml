@@ -1,0 +1,36 @@
+<mujoco model="animatronic_skull">
+  <compiler angle="radian" meshdir="."/>
+  
+  <asset>
+    <!-- We load the perfectly beautiful canonical face mesh, split into upper and lower -->
+    <!-- The mesh is about 17 units tall. We scale by 0.01 to make it ~17cm -->
+    <mesh name="upper_face" file="beautiful_upper_face.obj" scale="0.01 0.01 0.01"/>
+    <mesh name="lower_jaw" file="beautiful_lower_jaw.obj" scale="0.01 0.01 0.01"/>
+  </asset>
+
+  <worldbody>
+    <!-- Proper ambient lighting -->
+    <light pos="0 -2 5" dir="0 1 -1" diffuse="1 1 1" ambient="0.6 0.6 0.6"/>
+    <geom type="plane" size="10 10 0.1" rgba="0.3 0.3 0.3 1" contype="1" conaffinity="1"/>
+    
+    <!-- Rotated -90 degrees on X to stand upright, and 180 degrees on Z to face the camera -->
+    <body name="skull_assembly" pos="0 0 0.15" euler="-1.5708 0 3.14159">
+      
+      <!-- The upper face -->
+      <geom type="mesh" mesh="upper_face" rgba="0.85 0.7 0.6 1" contype="0" conaffinity="0"/>
+      
+      <!-- Moving jaw -->
+      <body name="jaw" pos="0 0 0">
+        <!-- The hinge joint acts as the pivot for the jaw opening -->
+        <!-- Pivot should be roughly at the ears: X=0, Y=0, Z=-0.02 (scaled by 0.01, so -2 in mesh coords) -->
+        <!-- Based on bounds, Y=-9 is bottom, Y=8 is top, Z=-2 is back, Z=7 is front. -->
+        <joint name="jaw_joint" type="hinge" pos="0 0 -0.02" axis="1 0 0" range="-0.2 0.5" damping="1.0" frictionloss="0.1"/>
+        <geom type="mesh" mesh="lower_jaw" rgba="0.85 0.7 0.6 1" contype="0" conaffinity="0"/>
+      </body>
+    </body>
+  </worldbody>
+  
+  <actuator>
+    <position name="jaw_motor" joint="jaw_joint" kp="100"/>
+  </actuator>
+</mujoco>
