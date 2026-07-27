@@ -34,7 +34,7 @@ class UDPVADBridge:
         
         self.triggered = False
         self.voiced_frames = []
-        self.silence_limit_frames = int(1500 / self.CHUNK_DURATION_MS)
+        self.silence_limit_frames = int(700 / self.CHUNK_DURATION_MS)
         self.silence_counter = 0
         
         self.interrupt_callbacks = []
@@ -103,6 +103,8 @@ class UDPVADBridge:
                 self.silence_counter = 0
                 
                 if len(segment) >= 12800:
+                    from core.metrics import turn_metrics
+                    turn_metrics.mark_vad_end()
                     self.segment_queue.put_nowait(segment)
                     logger.debug(f"Speech segment emitted ({len(segment)} bytes)")
                 else:

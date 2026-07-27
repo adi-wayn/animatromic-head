@@ -12,3 +12,11 @@ def speak(text: str):
     # Fire and forget into the DualTTSManager (it streams output live via UDP)
     dual_tts_manager.speak(text)
     return f"Finished speaking: {text}"
+
+def speak_stream(sentence_queue):
+    """
+    Synthesizes and speaks text using the physical speaker, streaming sentences from a queue.
+    """
+    logger.info("Using tool: speak_stream")
+    dual_tts_manager.speak_stream(sentence_queue)
+

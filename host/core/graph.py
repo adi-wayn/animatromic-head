@@ -11,6 +11,7 @@ from .llm_manager import LLMManager
 from .memory_manager import MemoryManager
 from adapters.esp32_adapter import send_kinematic_intent, broadcast_phase, send_emergency_stop
 from adapters.speaking import speak
+from audio.tts.dual_tts_manager import dual_tts_manager
 
 text_queue: asyncio.Queue = None
 

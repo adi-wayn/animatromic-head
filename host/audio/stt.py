@@ -40,6 +40,9 @@ async def stt_worker(segment_queue: asyncio.Queue, transcriber: WhisperTranscrib
         # Offload heavy inference to a thread to prevent blocking the event loop
         text = await asyncio.to_thread(transcriber.transcribe, audio_bytes)
         
+        from core.metrics import turn_metrics
+        turn_metrics.mark_stt_end()
+        
         if text:
             logger.info(f"USER SAID: {text}")
             # Put transcribed text into the LLM/Orchestrator queue
