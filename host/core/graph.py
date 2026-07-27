@@ -50,14 +50,15 @@ async def agent_node(state: AgentState):
     logger.info("Graph entered REASONING state.")
     
     llm_manager = LLMManager()
-    # Temperature 0 for strict JSON adherence
-    llm = llm_manager.get_llm("llama3.1", temperature=0.0)
-    structured_llm = llm.with_structured_output(CognitiveOutput, method="json_schema")
+    # Temperature 0.7 for more creative/scary responses
+    llm = llm_manager.get_llm("llama3.2", temperature=0.7)
     
     system_prompt = SystemMessage(
         content=(
             "You are a scary, haunted skull animatronic. Your persona is terrifying, ghostly, and sarcastic. "
-            "Respond to the user with a specific emotion and brief text."
+            "Respond to the user with a specific emotion and brief text. "
+            "You MUST start your response with the emotion in brackets, like [ANGRY] or [SAD] or [HAPPY] or [SURPRISED] or [NEUTRAL]. "
+            "Then, provide the text you want to say."
         )
     )
     
@@ -65,27 +66,90 @@ async def agent_node(state: AgentState):
     trimmed_messages = MemoryManager.trim_context(messages_to_trim)
     
     try:
-        result: CognitiveOutput = await structured_llm.ainvoke(trimmed_messages)
+        import queue
+        from adapters.speaking import speak_stream
         
-        # We store the LLM's response as an AIMessage so history is maintained
-        ai_msg = AIMessage(content=result.response_text, additional_kwargs={"emotion": result.emotion})
+        sentence_queue = queue.Queue()
+        # Start TTS stream consumer in a background thread to prevent event loop blocking
+        tts_task = asyncio.create_task(asyncio.to_thread(speak_stream, sentence_queue))
+        
+        broadcast_phase("SPEAKING")
+        
+        full_text = ""
+        emotion = "NEUTRAL"
+        current_sentence = ""
+        found_emotion = False
+        
+        async for chunk in llm.astream(trimmed_messages):
+            if dual_tts_manager.is_interrupted:
+                logger.warning("LLM generation aborted due to interrupt!")
+                break
+                
+            content = chunk.content
+            full_text += content
+            
+            if not found_emotion:
+                if "]" in full_text:
+                    parts = full_text.split("]", 1)
+                    emotion_raw = parts[0].replace("[", "").strip()
+                    emotion = emotion_raw.upper() if emotion_raw else "NEUTRAL"
+                    
+                    # Dispatch kinematic intent immediately as soon as emotion is known
+                    send_kinematic_intent(emotion, 0.8)
+                    
+                    found_emotion = True
+                    content = parts[1] if len(parts) > 1 else ""
+                else:
+                    continue # Still waiting for ]
+                    
+            if content:
+                current_sentence += content
+                # If we hit a punctuation or have enough words, push to TTS
+                words = current_sentence.split()
+                if any(punct in current_sentence for punct in [".", "?", "!", ",", ":", ";"]) or len(words) >= 5:
+                    import re
+                    # Split on punctuation if present
+                    if any(punct in current_sentence for punct in [".", "?", "!", ",", ":", ";"]):
+                        pieces = re.split(r'(?<=[.?!,:;]) +', current_sentence)
+                        for piece in pieces[:-1]:
+                            if piece.strip():
+                                sentence_queue.put(piece.strip())
+                        current_sentence = pieces[-1]
+                    else:
+                        # Split by words if it's getting too long without punctuation
+                        if len(words) >= 5:
+                            # Keep the last word in case it's currently being generated
+                            chunk_to_send = " ".join(words[:-1])
+                            if chunk_to_send.strip():
+                                sentence_queue.put(chunk_to_send.strip())
+                            current_sentence = words[-1] + (current_sentence[len(" ".join(words)):] if current_sentence.endswith(" ") else "")
+                    
+        if current_sentence.strip():
+            sentence_queue.put(current_sentence.strip())
+            
+        sentence_queue.put(None) # Signal EOF
+        
+        # Wait for TTS to finish playing
+        await tts_task
+        
+        # Clean up the output text to remove the emotion tag for memory
+        clean_text = full_text.split("]", 1)[1].strip() if "]" in full_text else full_text
+        ai_msg = AIMessage(content=clean_text, additional_kwargs={"emotion": emotion})
         
         return {
             "messages": [ai_msg],
-            "current_emotion": result.emotion
+            "current_emotion": emotion
         }
     except Exception as e:
-        logger.error(f"Structured Output Parsing Failed: {e}")
+        logger.error(f"Streaming LLM Failed: {e}")
         return {"messages": [AIMessage(content="I am malfunctioning...")]}
 
 async def behavior_node(state: AgentState):
     """The Deterministic Behavior Engine."""
     logger.info("Graph entered BEHAVIOR state.")
     
-    # Extract emotion and text from the latest state
+    # Extract emotion from the latest state
     emotion = state.get("current_emotion", "NEUTRAL")
-    last_msg = state["messages"][-1]
-    text_to_speak = last_msg.content if isinstance(last_msg, AIMessage) else ""
     
     # 1. Hardware State Verification (Firewall)
     phys_state = state.get("robot_physical_state", {})
@@ -97,14 +161,9 @@ async def behavior_node(state: AgentState):
         logger.warning("Behavior Engine: CPU load high on Edge, clamping intensity!")
         intensity = 0.3
         
-    # 2. Dispatch Movement Intent
+    # 2. Dispatch Movement Intent (TTS was already played dynamically by agent_node)
     broadcast_phase("MOVING")
     send_kinematic_intent(emotion, intensity)
-    
-    # 3. Dispatch Speech
-    if text_to_speak:
-        broadcast_phase("SPEAKING")
-        speak(text_to_speak)
         
     return {"current_emotion": emotion}
 
