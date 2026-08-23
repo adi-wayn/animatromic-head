@@ -261,7 +261,8 @@ class DualTTSManager:
                     if intensity < 0.05:
                         intensity = 0.0
                         
-                    _adapter.send_intent("JAW", intensity=intensity)
+                    # _adapter.send_intent("JAW", intensity=intensity) // Removed to prevent UDP flood, ESP32 does RMS natively
+
 
                 offset += AUDIO_CHUNK_SIZE_BYTES
                 time.sleep(chunk_duration_sec * 0.8)

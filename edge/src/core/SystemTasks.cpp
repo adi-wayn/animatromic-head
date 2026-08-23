@@ -310,9 +310,11 @@ void audioDownlinkTask(void *pvParameters) {
             audio.writeToSpeaker(pcmBuffer, bytesReceived);
         } else {
             // Amplitude decay: prevents jaw snapping on dropped packets
+            // We loop every ~1ms. Packets arrive every ~32ms.
+            // 0.95^32 = 0.19 (gradual decay instead of instant 0.8^32 = 0.0007)
             float currentAmp = audio.getAmplitude();
             if (currentAmp > 0.01f) {
-                audio.setAmplitude(currentAmp * 0.8f);
+                audio.setAmplitude(currentAmp * 0.95f);
             } else {
                 audio.setAmplitude(0.0f);
             }
