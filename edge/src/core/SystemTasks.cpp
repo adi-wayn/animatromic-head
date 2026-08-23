@@ -209,6 +209,10 @@ void audioUplinkTask(void *pvParameters) {
     pinMode(2, OUTPUT);
     int debugPrintCounter = 0;
 
+    bool isSendingAudio = false;
+    uint32_t lastSendTime = 0;
+    uint32_t lastActiveLogTime = 0;
+
     while (true) {
         // i2s_read blocks on DMA interrupt — natural CPU yield
         // even during Light Sleep, the I2S DMA continues running
@@ -232,18 +236,6 @@ void audioUplinkTask(void *pvParameters) {
             // Visual feedback
             digitalWrite(2, soundDetected ? HIGH : LOW);
 
-            // --- Visual VU Meter ---
-            static int debugPrintCounter = 0;
-            debugPrintCounter++;
-            if (debugPrintCounter >= 5) {
-                int numBars = (int)(rms / 20.0f);
-                if (numBars > 50) numBars = 50; 
-                String vu = "";
-                for(int i = 0; i < numBars; i++) vu += "#";
-                Serial.printf("[Filtered VU] RMS: %6.2f | %s\n", rms, vu.c_str());
-                debugPrintCounter = 0;
-            }
-
             if (soundDetected) {
                 if (AnimatronicHead::getInstance().isInLowPowerIdle()) {
                     SemaphoreHandle_t sem = PowerManager::getInstance().micWakeupSem;
@@ -257,7 +249,22 @@ void audioUplinkTask(void *pvParameters) {
 
             // Stream continuous 16-bit Mono audio to the host
             if (!AnimatronicHead::getInstance().isInLowPowerIdle()) {
-                audio.sendToHost((uint8_t*)cleanSamples16, numFrames * 2);
+                if (soundDetected) {
+                    if (!isSendingAudio) {
+                        Serial.println("[AudioUplink] START: Capturing audio from INMP441 and sending to Host...");
+                        isSendingAudio = true;
+                    }
+                    audio.sendToHost((uint8_t*)cleanSamples16, numFrames * 2);
+                    lastSendTime = millis();
+
+                    if (millis() - lastActiveLogTime > 2000) {
+                        Serial.println("[AudioUplink] ACTIVE: Currently streaming mic data over network.");
+                        lastActiveLogTime = millis();
+                    }
+                } else if (isSendingAudio && (millis() - lastSendTime > 1000)) {
+                    Serial.println("[AudioUplink] END: Silence detected. Stopped sending mic data.");
+                    isSendingAudio = false;
+                }
             }
         }
     }
@@ -282,6 +289,10 @@ void audioDownlinkTask(void *pvParameters) {
     uint8_t pcmBuffer[AUDIO_CHUNK_SIZE_BYTES];
     const float RMS_SCALER = 32768.0f;
 
+    bool isReceivingAudio = false;
+    uint32_t lastReceiveTime = 0;
+    uint32_t lastActiveLogTime = 0;
+
     while (true) {
         // Skip playback in low-power mode (no TTS expected)
         if (AnimatronicHead::getInstance().isInLowPowerIdle()) {
@@ -291,6 +302,17 @@ void audioDownlinkTask(void *pvParameters) {
 
         int bytesReceived = audio.receiveFromHost(pcmBuffer, AUDIO_CHUNK_SIZE_BYTES);
         if (bytesReceived > 0) {
+            if (!isReceivingAudio) {
+                Serial.println("[AudioDownlink] START: Receiving TTS audio from Host. Sending to MAX98357A...");
+                isReceivingAudio = true;
+            }
+            lastReceiveTime = millis();
+
+            if (millis() - lastActiveLogTime > 2000) {
+                Serial.println("[AudioDownlink] ACTIVE: Currently playing TTS audio through MAX98357A.");
+                lastActiveLogTime = millis();
+            }
+
             // Wake from low power if a downlink packet arrives unexpectedly
             PowerManager::getInstance().enterFullPower();
             AnimatronicHead::getInstance().updateActivityTimestamp();
@@ -309,6 +331,11 @@ void audioDownlinkTask(void *pvParameters) {
 
             audio.writeToSpeaker(pcmBuffer, bytesReceived);
         } else {
+            if (isReceivingAudio && (millis() - lastReceiveTime > 500)) {
+                Serial.println("[AudioDownlink] END: Audio stream finished. Stopped sending to MAX98357A.");
+                isReceivingAudio = false;
+            }
+
             // Amplitude decay: prevents jaw snapping on dropped packets
             // We loop every ~1ms. Packets arrive every ~32ms.
             // 0.95^32 = 0.19 (gradual decay instead of instant 0.8^32 = 0.0007)
