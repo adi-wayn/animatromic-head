@@ -329,9 +329,9 @@ Sent by the Edge to the Host to signal that the TTS audio buffer has finished pl
 
 ### 7.1 The 3D-Printed Skull & Actuation Mechanics
 The physical animatronic skull relies on exactly 9 hardware servos, broken down by their mechanical roles:
-*   **Neck & Multi-Axis Base Platform:** 3× **MG945** High-Torque Metal Gear Servos. These operate in a coordinated arrangement (a Stewart-like platform) to allow pitch, roll, and yaw (nodding, turning, tilting).
-*   **Head Alignment / Stabilization:** 1× **HX5010** Large Standard Servo positioned at the top of the head. It utilizes a wired iron mechanism to keep the head aligned and stabilize it from the top.
-*   **Speech Mechanism (Jaw):** 2× **SG90** Micro Servos powering the top jaw and the bottom jaw for phonetic lip-sync.
+*   **Neck & Multi-Axis Base Platform:** 2× **MG945** and 1× **MG995** High-Torque Metal Gear Servos. These operate in a coordinated arrangement (a Stewart-like platform) to allow pitch, roll, and yaw (nodding, turning, tilting).
+*   **Head Alignment / Stabilization:** Currently achieved through mechanical linkages or alternative servos. (Previously assigned HX5010, now repurposed).
+*   **Speech Mechanism (Jaw):** 1× **HX5010** Large Standard Servo powering the main jaw movement (`JAW_UD`), and 1× **SG90** Micro Servo for left/right jaw movement (`JAW_LR`).
 *   **Ocular & Facial Expressions:** 3× **SG90** Micro Servos controlling eye horizontal/vertical look vectors and upper/lower eyelid blinking/winking mechanics via thin pushrods.
 
 ### 7.2 Core Peripheral Components

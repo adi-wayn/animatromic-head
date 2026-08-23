@@ -10,11 +10,10 @@ constexpr uint16_t PORT_AUDIO_UPLINK = 4211;
 constexpr uint16_t PORT_AUDIO_DOWNLINK = 4212;
 constexpr uint16_t PORT_TELEMETRY = 4213;
 
-// --- Audio Format Constants (auto-generated from schema.json) ---
 constexpr uint32_t AUDIO_SAMPLE_RATE_HZ = 16000;
 constexpr uint8_t AUDIO_BIT_DEPTH = 16;
 constexpr uint8_t AUDIO_CHANNELS = 1;
-constexpr uint16_t AUDIO_CHUNK_SIZE_BYTES = 1024;
+constexpr uint16_t AUDIO_CHUNK_SIZE_BYTES = 2048;
 constexpr uint16_t AUDIO_HEADER_SIZE_BYTES = 6;
 
 enum class MessageType {

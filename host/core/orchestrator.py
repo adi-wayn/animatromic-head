@@ -1,5 +1,6 @@
 import asyncio
 from audio.udp_vad_bridge import UDPVADBridge
+from audio.mac_mic_vad import VADManager as MacMicVAD
 from audio.stt import WhisperTranscriber, stt_worker
 from core import graph
 from core.llm_manager import LLMManager
@@ -8,6 +9,9 @@ from audio.tts.dual_tts_manager import dual_tts_manager
 from adapters.esp32_adapter import _adapter, send_emergency_stop
 from loguru import logger
 from langchain_core.messages import HumanMessage
+
+# TOGGLE THIS TO SWITCH BETWEEN MAC MIC AND ESP32 (INMP441)
+USE_MAC_MIC = True
 
 class CognitiveOrchestrator:
     def __init__(self):
@@ -23,7 +27,13 @@ class CognitiveOrchestrator:
         
         audio_rx_queue = asyncio.Queue()
         _adapter.start_audio_rx(self.loop, audio_rx_queue)
-        self.vad_manager = UDPVADBridge(audio_rx_queue, self.segment_queue)
+        
+        if USE_MAC_MIC:
+            logger.info("Configuration: Using Mac Built-in Mic (PyAudio) for VAD")
+            self.vad_manager = MacMicVAD(self.segment_queue, self.loop)
+        else:
+            logger.info("Configuration: Using ESP32 UDP Mic for VAD")
+            self.vad_manager = UDPVADBridge(audio_rx_queue, self.segment_queue)
         
         # PRELOAD: Force XTTS to load into RAM now so the first response is instantaneous
         logger.info("Preloading XTTS model to eliminate first-time latency...")
