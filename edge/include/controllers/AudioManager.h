@@ -65,6 +65,13 @@ private:
     bool hostIPKnown = false;
     uint16_t uplinkSeqNum = 0;
     
+    // High-Pass Filter state for DC offset removal
+    float hpf_x_prev = 0.0f;
+    float hpf_y_prev = 0.0f;
+    
+    // Low-Pass Filter state
+    float lpf_y_prev = 0.0f;
+    
     // 32-bit floats are naturally atomic on ESP32, but we use volatile 
     // to prevent compiler caching across cores.
     volatile float currentAmplitude = 0.0f;

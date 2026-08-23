@@ -80,6 +80,9 @@ async def agent_node(state: AgentState):
         emotion = "NEUTRAL"
         current_sentence = ""
         found_emotion = False
+        full_response = ""
+        # We need to print a nice header for the assistant's response
+        print("\n\033[96m[Animatronic Head]: \033[0m", end="", flush=True)
         
         async for chunk in llm.astream(trimmed_messages):
             if dual_tts_manager.is_interrupted:
@@ -88,6 +91,10 @@ async def agent_node(state: AgentState):
                 
             content = chunk.content
             full_text += content
+            
+            if content:
+                print(f"\033[93m{content}\033[0m", end="", flush=True)
+                full_response += content
             
             if not found_emotion:
                 if "]" in full_text:

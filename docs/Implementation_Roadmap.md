@@ -130,3 +130,43 @@
 - **Testing Methodology:** Always mock JSON payloads from Python before relying on the LLM to generate them. 
 - **Configuration Management:** All physical limits and Wi-Fi credentials should reside exclusively in `include/Config.h`.
 - **Future Integration:** Once Phase 4 is stable, consider adding ultrasonic proximity sensors (HC-SR04) to allow the head to physically orient toward approaching users.
+
+---
+
+### Phase 6: ESP32 Resource & Power Optimization ✅ COMPLETE
+**Goal:** Minimize CPU, power, and I2C bus consumption when the system is idle.
+**Branch:** `feature/esp32-power-optimization`
+
+- [x] **Task 6.1: 3-State Power Model**
+  - Added `LOW_POWER_IDLE` to `SystemState` enum.
+  - `AnimatronicHead` tracks `_lastActivityMs` for 60s inactivity detection.
+
+- [x] **Task 6.2: PowerManager Singleton**
+  - New `edge/include/core/PowerManager.h` / `edge/src/core/PowerManager.cpp`.
+  - `enterLowPowerIdle()`: detaches all 9 servos, sets LOW_POWER_IDLE state.
+  - `enterFullPower()`: restores IDLE_LISTENING state, resets activity timer.
+  - Enables ESP-IDF dynamic CPU scaling (80–240 MHz) via `esp_pm_configure`.
+
+- [x] **Task 6.3: Hardware Timer ISR for Kinematics (60 Hz)**
+  - Replaced `vTaskDelay(15ms)` spin-loop with `timerBegin/timerAlarmWrite` hardware timer.
+  - ISR (`IRAM_ATTR onKinematicsTimer`) gives `kinematicsTriggerSem` every 16.6ms.
+  - CPU enters FreeRTOS tickless idle (→ Light Sleep) between firings.
+
+- [x] **Task 6.4: Audio Hardware Interrupt Wakeup**
+  - `audioUplinkTask` computes RMS per I2S DMA buffer.
+  - RMS > `SILENCE_RMS_THRESHOLD` (250.0) → gives `PowerManager::micWakeupSem`.
+  - `powerWatchdogTask` blocks on `micWakeupSem` in LOW_POWER_IDLE → acts as hardware audio interrupt wakeup.
+
+- [x] **Task 6.5: JSON Parser Blocking Queue**
+  - `NetworkManager::getNextMessage(timeout)` now accepts a `timeoutMs` parameter.
+  - `jsonParserTask` uses 25ms blocking wait → CPU yields to tickless idle.
+
+- [x] **Task 6.6: FreeRTOS Tickless Idle + ESP-IDF PM**
+  - `platformio.ini` build flags: `CONFIG_PM_ENABLE=1`, `CONFIG_FREERTOS_USE_TICKLESS_IDLE=1`.
+  - When ALL tasks are blocked, FreeRTOS scheduler enters ESP32 Light Sleep automatically.
+
+- [x] **Task 6.7: powerWatchdogTask**
+  - New lowest-priority task (Priority 1, Core 1).
+  - Checks inactivity every 5s. Triggers `enterLowPowerIdle()` after 60s.
+  - In LOW_POWER_IDLE: blocks on `micWakeupSem` (portMAX_DELAY) → full tickless idle.
+

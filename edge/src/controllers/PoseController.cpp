@@ -125,8 +125,16 @@ void PoseController::blinkLeft(int durationMs, EasingType easing) {
 }
 
 void PoseController::blink(int durationMs, EasingType easing) {
-    moveEyelidLeft(EYELID_LEFT.maxAngle, durationMs, easing);
-    moveEyelidRight(EYELID_RIGHT.maxAngle, durationMs, easing);
+    // 1. Close eyelids (150ms)
+    moveEyelidLeft(EYELID_LEFT.maxAngle, 150, easing);
+    moveEyelidRight(EYELID_RIGHT.maxAngle, 150, easing);
+    
+    // 2. Schedule re-opening 150ms later (using simple delay block for atomic primitive)
+    vTaskDelay(pdMS_TO_TICKS(150));
+    
+    // 3. Open eyelids (slower, 200ms)
+    moveEyelidLeft(EYELID_LEFT.minAngle, 200, EASE_OUT_EXPO);
+    moveEyelidRight(EYELID_RIGHT.minAngle, 200, EASE_OUT_EXPO);
 }
 
 // --- Jaw ---
@@ -170,21 +178,21 @@ void PoseController::expressThinking() {
     moveEyelidLeft(EYELID_LEFT.centerAngle, 200, EASE_OUT_EXPO);
     moveEyelidRight(EYELID_RIGHT.centerAngle, 200, EASE_OUT_EXPO);
     
-    jawClose(400, EASE_IN_OUT_SINE);
-    moveNeckPan(NECK_ONE.centerAngle + 15, 600, EASE_IN_OUT_CUBIC);
-    moveNeckTilt(NECK_Y.centerAngle - 10, 600, EASE_IN_OUT_CUBIC);
+    lookUp(600, EASE_IN_OUT_CUBIC);
+    tiltRight(500, EASE_IN_OUT_CUBIC);
+    jawClose(200, EASE_IN_OUT_SINE);
 }
 
 void PoseController::resetToNeutral() {
     moveNeckPan(NECK_ONE.centerAngle, 600, EASE_IN_OUT_CUBIC);
-    moveNeckTilt(NECK_Y.centerAngle, 600, EASE_IN_OUT_CUBIC);
-    moveNeckRoll(NECK_ROLL.centerAngle, 600, EASE_IN_OUT_CUBIC);
+    // moveNeckTilt(NECK_Y.centerAngle, 600, EASE_IN_OUT_CUBIC); // Disabled to prevent head slouch
+    // moveNeckRoll(NECK_ROLL.centerAngle, 600, EASE_IN_OUT_CUBIC); // Disabled
     
     moveEyesPan(EYES_X.centerAngle, 300, EASE_OUT_EXPO);
     moveEyesTilt(EYES_Y.centerAngle, 300, EASE_OUT_EXPO);
     moveEyelidLeft(EYELID_LEFT.minAngle, 300, EASE_OUT_EXPO);
     moveEyelidRight(EYELID_RIGHT.minAngle, 300, EASE_OUT_EXPO);
     
-    moveJawUD(JAW_UD.centerAngle, 500, EASE_IN_OUT_SINE);
+    moveJawUD(JAW_UD.maxAngle, 500, EASE_IN_OUT_SINE);
     moveJawLR(JAW_LR.centerAngle, 500, EASE_IN_OUT_SINE);
 }

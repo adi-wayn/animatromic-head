@@ -61,3 +61,15 @@ This project strictly enforces a tri-layer physical repository structure to ensu
 *   **Create Skills:** If you encounter a repetitive workflow or solve a complex problem, proactively use the `workflow-skill-creator` or write bash/python scripts to automate it. You do not need permission to create a skill.
 *   **Act Decisively:** If you encounter a bug, fix it. If you need a script, write and execute it.
 *   **Force Alignment:** If requirements are ambiguous, proactively prompt the user to use the `/grill-me` command to force an interactive alignment session before you write code.
+
+## 9. Power Management Architecture (ESP32)
+
+*   **3-State Power Model:** The system has three power states: `IDLE_LISTENING` (full power, 240 MHz), `SPEAKING_SYNCING` (full power), and `LOW_POWER_IDLE` (80 MHz, all servos detached).
+*   **Inactivity Timeout:** After **60 seconds** of no UDP packet activity, the system transitions to `LOW_POWER_IDLE`. Call `AnimatronicHead::getInstance().updateActivityTimestamp()` on EVERY external event (packet received, audio detected) to reset this timer.
+*   **Hardware Timer ISR:** The `kinematicsTask` is driven by a 60 Hz hardware timer ISR (`onKinematicsTimer`, `IRAM_ATTR`). Do NOT replace it with `vTaskDelay`. The ISR gives `kinematicsTriggerSem`; the task blocks on it, enabling Tickless Idle between firings.
+*   **Audio Interrupt Wakeup:** The `audioUplinkTask` acts as a hardware audio interrupt. It continuously reads I2S DMA buffers and computes RMS. When RMS > `SILENCE_RMS_THRESHOLD` in `LOW_POWER_IDLE`, it gives `PowerManager::micWakeupSem` to wake the system. This is the primary wakeup mechanism from low-power state.
+*   **FreeRTOS Tickless Idle:** `CONFIG_FREERTOS_USE_TICKLESS_IDLE=1` is set in `platformio.ini`. When ALL tasks are blocked on semaphores/queues, the FreeRTOS idle hook automatically enters ESP32 Light Sleep. This happens naturally as a result of the blocking semaphore design — no explicit `esp_light_sleep_start()` calls needed.
+*   **Servo Detach on Idle:** `PowerManager::enterLowPowerIdle()` detaches all 9 servo channels via `detachServo()`. This eliminates 3–4A of holding current on the neck/base servos. Servos re-attach automatically on the next `safeSetServoAngle` call when the system wakes up.
+*   **CPU Frequency Scaling:** `esp_pm_configure` is called in `PowerManager::begin()` to register 80–240 MHz dynamic scaling. The ESP-IDF PM driver handles frequency transitions automatically based on active `esp_pm_lock` handles held by the Wi-Fi stack and I2S DMA.
+*   **TWDT Timeout:** The Task Watchdog Timer timeout is set to **6 seconds** (raised from 3s) to prevent false panics during Light Sleep phases where tasks may be dormant slightly longer than expected.
+
