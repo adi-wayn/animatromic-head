@@ -83,7 +83,7 @@ class ESP32UDPAdapter:
         try:
             data = json.dumps(payload).encode('utf-8')
             self.sock.sendto(data, (self.ip, self.port))
-            logger.debug(f"Sent UDP packet to {self.ip}:{self.port} -> {payload}")
+            # logger.debug(f"Sent UDP packet to {self.ip}:{self.port} -> {payload}")
             return True
         except Exception as e:
             logger.error(f"Failed to send UDP packet to ESP32: {e}")

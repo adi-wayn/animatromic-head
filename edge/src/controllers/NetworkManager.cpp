@@ -1,6 +1,7 @@
 #include "controllers/NetworkManager.h"
 #include <WiFiManager.h>
 #include <ESPmDNS.h>
+#include <esp_wifi.h>
 #include "controllers/AudioManager.h"
 
 NetworkManager::NetworkManager() : messageQueue(nullptr) {}
@@ -18,8 +19,13 @@ void NetworkManager::begin(uint16_t port) {
         ESP.restart();
     } else {
         Serial.println("\n[Network] Connected to Wi-Fi!");
+        
+        // Disable WiFi power save to prevent UDP buffer overflow (Error 12 / ENOMEM)
+        esp_wifi_set_ps(WIFI_PS_NONE);
+        
         Serial.print("[Network] IP Address: ");
         Serial.println(WiFi.localIP());
+        _isConnected = true;
     }
 
     // Advertise via mDNS so the Host can find us by hostname
@@ -48,11 +54,13 @@ void NetworkManager::update() {
     }
 }
 
-bool NetworkManager::getNextMessage(String &messageOut) {
+bool NetworkManager::getNextMessage(String &messageOut, uint32_t timeoutMs) {
     if (messageQueue == nullptr) return false;
     
     char buffer[1024];
-    if (xQueueReceive(messageQueue, &buffer, 0) == pdPASS) {
+    // timeoutMs=0 → non-blocking poll; timeoutMs>0 → CPU-yielding block
+    TickType_t ticks = (timeoutMs == 0) ? 0 : pdMS_TO_TICKS(timeoutMs);
+    if (xQueueReceive(messageQueue, &buffer, ticks) == pdPASS) {
         messageOut = String(buffer);
         return true;
     }
