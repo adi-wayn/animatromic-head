@@ -7,6 +7,8 @@ void PoseController::executePose(const char* intent) {
     if (strcmp(intent, "HAPPY") == 0) expressHappy();
     else if (strcmp(intent, "SAD") == 0) expressSad();
     else if (strcmp(intent, "THINKING") == 0) expressThinking();
+    else if (strcmp(intent, "ANGRY") == 0) expressAngry();
+    else if (strcmp(intent, "SURPRISED") == 0) expressSurprised();
     else if (strcmp(intent, "NEUTRAL") == 0) resetToNeutral();
     
     // Direct Physical / Primitive Commands
@@ -66,6 +68,26 @@ void PoseController::generateOrganicSaccade(uint32_t timeMs) {
 
     moveEyesPan(targetX, 100, EASE_OUT_EXPO);
     moveEyesTilt(targetY, 100, EASE_OUT_EXPO);
+    
+    // Add organic neck drift (slow and visible)
+    // The previous range was too small (3-5 degrees) to overcome servo deadband.
+    // generateSimpleNoise maxes out around 0.3-0.4, so we need a larger multiplier.
+    double neckNoiseX = generateSimpleNoise(timeMs + 5000, 0.4f) * 2.5; 
+    double neckNoiseY = generateSimpleNoise(timeMs + 7000, 0.3f) * 2.5;
+    
+    // Clamp noise to roughly [-1.0, 1.0]
+    if(neckNoiseX > 1.0) neckNoiseX = 1.0; else if(neckNoiseX < -1.0) neckNoiseX = -1.0;
+    if(neckNoiseY > 1.0) neckNoiseY = 1.0; else if(neckNoiseY < -1.0) neckNoiseY = -1.0;
+    
+    double neckXRange = (NECK_ONE.maxAngle - NECK_ONE.minAngle) * 0.25; // 25% physical range
+    double neckYRange = (NECK_Y.maxAngle - NECK_Y.minAngle) * 0.20; // 20% physical range
+    
+    double targetNeckX = NECK_ONE.centerAngle + (neckNoiseX * neckXRange);
+    double targetNeckY = NECK_Y.centerAngle + (neckNoiseY * neckYRange);
+    
+    // Since idle task runs at random intervals between 800-2500ms, a 1500ms ease looks smooth
+    moveNeckPan(targetNeckX, 1500, EASE_IN_OUT_SINE);
+    moveNeckTilt(targetNeckY, 1500, EASE_IN_OUT_SINE);
 }
 
 void PoseController::syncJawToAmplitude(float intensity) {
@@ -75,13 +97,14 @@ void PoseController::syncJawToAmplitude(float intensity) {
     double rangeUD = JAW_UD.maxAngle - JAW_UD.minAngle;
     double targetUD = JAW_UD.maxAngle - (intensity * rangeUD);
     
-    // Smooth the movement over 15ms (the ~60Hz kinematics update rate)
-    moveJawUD(targetUD, 15, EASE_IN_OUT_SINE);
+    // Smooth the movement by updating the target continuously at 60Hz.
+    // Setting duration to 0 prevents triggerMove from resetting the easing curve to time=0 every frame.
+    moveJawUD(targetUD, 0, EASE_IN_OUT_SINE);
     
     // 2. Secondary axis (Organic texture - LR)
     // Blend a tiny bit of left/right motion based on intensity for realism
     double targetLR = JAW_LR.centerAngle + ((intensity * 10.0) - 5.0); // +/- 5 degrees
-    moveJawLR(targetLR, 15, EASE_IN_OUT_SINE);
+    moveJawLR(targetLR, 0, EASE_IN_OUT_SINE);
 }
 
 // --- Basic Directions ---
@@ -183,10 +206,36 @@ void PoseController::expressThinking() {
     jawClose(200, EASE_IN_OUT_SINE);
 }
 
+void PoseController::expressAngry() {
+    // Eyelids lowered aggressively
+    moveEyelidLeft(EYELID_LEFT.centerAngle + 20, 150, EASE_OUT_EXPO);
+    moveEyelidRight(EYELID_RIGHT.centerAngle + 20, 150, EASE_OUT_EXPO);
+    
+    // Head snaps forward and down slightly
+    moveNeckPan(NECK_ONE.centerAngle, 300, EASE_IN_OUT_CUBIC);
+    lookDown(300, EASE_IN_OUT_CUBIC);
+    
+    // Jaw clenches
+    jawClose(150, EASE_IN_OUT_SINE);
+}
+
+void PoseController::expressSurprised() {
+    // Eyes wide open
+    moveEyelidLeft(EYELID_LEFT.minAngle, 150, EASE_OUT_EXPO);
+    moveEyelidRight(EYELID_RIGHT.minAngle, 150, EASE_OUT_EXPO);
+    
+    // Head pulls back and up
+    moveNeckPan(NECK_ONE.centerAngle, 200, EASE_IN_OUT_CUBIC);
+    lookUp(200, EASE_IN_OUT_CUBIC);
+    
+    // Jaw drops
+    jawOpen(200, EASE_IN_OUT_SINE);
+}
+
 void PoseController::resetToNeutral() {
     moveNeckPan(NECK_ONE.centerAngle, 600, EASE_IN_OUT_CUBIC);
-    // moveNeckTilt(NECK_Y.centerAngle, 600, EASE_IN_OUT_CUBIC); // Disabled to prevent head slouch
-    // moveNeckRoll(NECK_ROLL.centerAngle, 600, EASE_IN_OUT_CUBIC); // Disabled
+    moveNeckTilt(NECK_Y.centerAngle, 600, EASE_IN_OUT_CUBIC); 
+    moveNeckRoll(NECK_ROLL.centerAngle, 600, EASE_IN_OUT_CUBIC); 
     
     moveEyesPan(EYES_X.centerAngle, 300, EASE_OUT_EXPO);
     moveEyesTilt(EYES_Y.centerAngle, 300, EASE_OUT_EXPO);

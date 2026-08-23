@@ -45,6 +45,8 @@ private:
     void expressHappy();
     void expressSad();
     void expressThinking();
+    void expressAngry();
+    void expressSurprised();
     void resetToNeutral();
 
     
