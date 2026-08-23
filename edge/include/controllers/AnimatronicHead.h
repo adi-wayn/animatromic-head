@@ -5,9 +5,10 @@
 #include "controllers/PoseController.h"
 
 enum class SystemState {
-    IDLE_LISTENING,
-    SPEAKING_SYNCING,
-    INTERRUPTED
+    IDLE_LISTENING,     // Awake, listening for user speech
+    SPEAKING_SYNCING,   // TTS playing, lip sync active
+    INTERRUPTED,        // Emergency stop received mid-speech
+    LOW_POWER_IDLE      // All servos detached, CPU throttled, mic in wakeup ISR mode
 };
 
 class AnimatronicHead {
@@ -24,6 +25,11 @@ public:
     void setState(SystemState newState) { currentState = newState; }
     bool isBooted() const { return fullyBooted; }
     void setBooted(bool state) { fullyBooted = state; }
+    bool isInLowPowerIdle() const { return currentState == SystemState::LOW_POWER_IDLE; }
+
+    // Inactivity tracking — updated on any host packet, speech event, or wakeup
+    void updateActivityTimestamp() { _lastActivityMs = millis(); }
+    uint32_t getLastActivityMs() const { return _lastActivityMs; }
 
     // Facade Methods (Delegating to sub-systems)
     void begin() { KinematicEngine::getInstance().begin(); }
@@ -35,6 +41,8 @@ private:
     AnimatronicHead() {}
     bool fullyBooted = false;
     SystemState currentState = SystemState::IDLE_LISTENING;
+    uint32_t _lastActivityMs = 0;
 };
 
 #endif
+

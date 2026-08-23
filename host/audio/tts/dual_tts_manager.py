@@ -103,6 +103,18 @@ class DualTTSManager:
                 logger.info("Sent TTS_COMPLETE to ESP32.")
                 
         finally:
+            if hasattr(self, 'full_response_pcm') and len(self.full_response_pcm) > 0:
+                try:
+                    import wave
+                    with wave.open("debug_ai_output.wav", 'wb') as wf:
+                        wf.setnchannels(1)
+                        wf.setsampwidth(2)
+                        wf.setframerate(24000)
+                        wf.writeframes(self.full_response_pcm)
+                except Exception:
+                    pass
+                self.full_response_pcm = b""
+                
             self.is_speaking_active = False
             self.last_speaking_end_time = time.time()
             
@@ -168,6 +180,19 @@ class DualTTSManager:
                 logger.info("Sent TTS_COMPLETE to ESP32.")
                 
         finally:
+            if hasattr(self, 'full_response_pcm') and len(self.full_response_pcm) > 0:
+                try:
+                    import wave
+                    with wave.open("debug_ai_output.wav", 'wb') as wf:
+                        wf.setnchannels(1) # Assuming XTTS output is mono 24kHz originally
+                        wf.setsampwidth(2)
+                        wf.setframerate(24000) # Assuming XTTS default rate for raw_pcm
+                        wf.writeframes(self.full_response_pcm)
+                    logger.info("Saved complete AI TTS audio to debug_ai_output.wav")
+                except Exception as e:
+                    logger.error(f"Failed to dump debug_ai_output.wav: {e}")
+                self.full_response_pcm = b"" # Reset for next turn
+                
             self.is_speaking_active = False
             self.last_speaking_end_time = time.time()
             
@@ -192,6 +217,11 @@ class DualTTSManager:
                 sampwidth = wf.getsampwidth()
                 source_rate = wf.getframerate()
                 raw_pcm = wf.readframes(wf.getnframes())
+
+            # Accumulate for debugging
+            if not hasattr(self, 'full_response_pcm'):
+                self.full_response_pcm = b""
+            self.full_response_pcm += raw_pcm
 
             # Decode to numpy
             audio_np = np.frombuffer(raw_pcm, dtype=np.int16).astype(np.float32)
@@ -231,7 +261,8 @@ class DualTTSManager:
                     if intensity < 0.05:
                         intensity = 0.0
                         
-                    _adapter.send_intent("JAW", intensity=intensity)
+                    # _adapter.send_intent("JAW", intensity=intensity) // Removed to prevent UDP flood, ESP32 does RMS natively
+
 
                 offset += AUDIO_CHUNK_SIZE_BYTES
                 time.sleep(chunk_duration_sec * 0.8)
