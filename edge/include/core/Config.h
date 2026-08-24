@@ -11,7 +11,7 @@ struct ServoConfig {
 };
 
 constexpr ServoConfig NECK_Y      = { 0, 40.0, 95.0, 70.0 };
-constexpr ServoConfig JAW_UD      = { 1, 40.0, 120.0, 120.0 }; // minAngle=Open, maxAngle=Closed (increased to 120 to close fully)
+constexpr ServoConfig JAW_UD      = { 1, 40.0, 120.0, 90.0 }; // minAngle=Open, maxAngle=Closed (increased to 120 to close fully)
 constexpr ServoConfig NECK_ONE    = { 3, 40.0, 140.0, 90.0 };
 constexpr ServoConfig EYELID_RIGHT= { 4, 60.0, 140.0, 90.0 };
 constexpr ServoConfig EYELID_LEFT = { 5, 40.0, 220.0, 90.0 };
