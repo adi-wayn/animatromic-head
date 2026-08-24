@@ -23,8 +23,8 @@ constexpr int        I2S_SPK_DIN_PIN = 27;   // Data In (DIN)
 // ============================================================
 // Shared DMA Tuning
 // ============================================================
-constexpr int I2S_DMA_BUF_COUNT = 6;          // 6 buffers × 1024 = ~192ms buffer
-constexpr int I2S_DMA_BUF_LEN   = 1024; // Max allowed by ESP32 IDF
+constexpr int I2S_DMA_BUF_COUNT = 8;    // Increased count for stability
+constexpr int I2S_DMA_BUF_LEN   = 256;  // Crucial fix: 1024 frames * 32-bit stereo exceeds 4092 byte DMA limit!
 
 
 #endif

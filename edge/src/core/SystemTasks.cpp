@@ -230,10 +230,11 @@ void audioUplinkTask(void *pvParameters) {
             }
             float rms = (numFrames > 0) ? sqrtf(sumSq / numFrames) : 0.0f;
 
-            // Check threshold
+            // 2. Threshold Check
+            // We only flag 'soundDetected' if the audio energy is above the noise floor
+            // 216 RMS is the thermal noise floor for this defective module.
+            // A threshold of 500+ is needed for real speech.
             bool soundDetected = (rms > SILENCE_RMS_THRESHOLD);
-
-            // Visual feedback
             digitalWrite(2, soundDetected ? HIGH : LOW);
 
             if (soundDetected) {
