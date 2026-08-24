@@ -117,7 +117,7 @@ def send_kinematic_intent(emotion_primary: str, intensity_level: float = 1.0) ->
     """
     Send a physical movement or emotional intent to the Animatronic Head hardware.
     Use this tool when you want the head to move or express an emotion physically.
-    Allowed emotions: HAPPY, SAD, SURPRISED, ANGRY, NEUTRAL, LOOK_LEFT, LOOK_RIGHT, LOOK_UP, LOOK_DOWN.
+    Allowed emotions/actions: HAPPY, SAD, THINKING, ANGRY, SURPRISED, NEUTRAL, LOOK_LEFT, LOOK_RIGHT, LOOK_UP, LOOK_DOWN, BLINK, JAW_OPEN, JAW_CLOSE.
     """
     return _adapter.send_intent(emotion_primary, intensity_level)
 

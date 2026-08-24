@@ -2,7 +2,7 @@ from loguru import logger
 from langchain_core.messages import BaseMessage, SystemMessage, HumanMessage, AIMessage
 from langgraph.graph import StateGraph, START, END
 from langgraph.graph.message import add_messages
-from typing import Annotated, TypedDict, Optional
+from typing import Annotated, TypedDict, Optional, Literal
 from pydantic import BaseModel, Field
 import asyncio
 import json
@@ -16,7 +16,7 @@ from audio.tts.dual_tts_manager import dual_tts_manager
 text_queue: asyncio.Queue = None
 
 class CognitiveOutput(BaseModel):
-    emotion: str = Field(description="The primary emotion of the response, e.g., 'SAD', 'HAPPY', 'ANGRY', 'SURPRISED', 'NEUTRAL'")
+    emotion: Literal['HAPPY', 'SAD', 'THINKING', 'ANGRY', 'SURPRISED', 'NEUTRAL', 'LOOK_LEFT', 'LOOK_RIGHT', 'LOOK_UP', 'LOOK_DOWN', 'BLINK', 'JAW_OPEN', 'JAW_CLOSE'] = Field(description="The primary physical action or emotion you wish to portray.")
     response_text: str = Field(description="The words you want to say out loud to the user. Keep it brief. Empty string if no speech.")
 
 class AgentState(TypedDict):
@@ -51,15 +51,20 @@ async def agent_node(state: AgentState):
     logger.info("Graph entered REASONING state.")
     
     llm_manager = LLMManager()
-    # Temperature 0.7 for more creative/scary responses
-    llm = llm_manager.get_llm("llama3.2", temperature=0.7)
+    # Temperature 0.3 for structured JSON output
+    llm = llm_manager.get_llm("llama3.2", format_schema=CognitiveOutput, temperature=0.3)
     
     system_prompt = SystemMessage(
         content=(
-            "You are a scary, haunted skull animatronic. Your persona is terrifying, ghostly, and sarcastic. "
-            "Respond to the user with a specific emotion and brief text. "
-            "You MUST start your response with the emotion in brackets, like [ANGRY] or [SAD] or [HAPPY] or [SURPRISED] or [NEUTRAL]. "
-            "Then, provide the text you want to say."
+            "You are a highly intelligent, cooperative AI assistant contained within an animatronic robot head. "
+            "Crucially, you have a dark, terrifying, and villainous persona. You speak with a scary, commanding tone, "
+            "but you are fully cooperative: you will accurately answer questions (math, science, identity, purpose) "
+            "and strictly obey user commands. "
+            "You can control your physical head's movements and emotions through the 'emotion' field in your response schema. "
+            "If you feel certain emotion or you want to move based on the user input or the user commands you to perform a specific action (e.g., 'look left', 'be sad'), you MUST set the "
+            "emotion field to match that action exactly. Otherwise, pick the most appropriate "
+            "emotion for your scary response (e.g. 'ANGRY', 'THINKING', 'LOOK_UP'). "
+            "NEVER choose 'NEUTRAL' unless the user explicitly asks you to reset your pose."
         )
     )
     
@@ -67,89 +72,32 @@ async def agent_node(state: AgentState):
     trimmed_messages = MemoryManager.trim_context(messages_to_trim)
     
     try:
-        import queue
-        from adapters.speaking import speak_stream
-        
-        sentence_queue = queue.Queue()
-        # Start TTS stream consumer in a background thread to prevent event loop blocking
-        tts_task = asyncio.create_task(asyncio.to_thread(speak_stream, sentence_queue))
-        
         broadcast_phase("SPEAKING")
-        
-        full_text = ""
-        emotion = "NEUTRAL"
-        current_sentence = ""
-        found_emotion = False
-        full_response = ""
-        # We need to print a nice header for the assistant's response
         print("\n\033[96m[Animatronic Head]: \033[0m", end="", flush=True)
         
-        async for chunk in llm.astream(trimmed_messages):
-            if dual_tts_manager.is_interrupted:
-                logger.warning("LLM generation aborted due to interrupt!")
-                break
-                
-            content = chunk.content
-            full_text += content
-            
-            if content:
-                print(f"\033[93m{content}\033[0m", end="", flush=True)
-                full_response += content
-            
-            if not found_emotion:
-                if "]" in full_text:
-                    parts = full_text.split("]", 1)
-                    emotion_raw = parts[0].replace("[", "").strip()
-                    emotion = emotion_raw.upper() if emotion_raw else "NEUTRAL"
-                    
-                    # Dispatch kinematic intent immediately as soon as emotion is known
-                    send_kinematic_intent(emotion, 0.8)
-                    
-                    found_emotion = True
-                    content = parts[1] if len(parts) > 1 else ""
-                else:
-                    continue # Still waiting for ]
-                    
-            if content:
-                current_sentence += content
-                # If we hit a punctuation or have enough words, push to TTS
-                words = current_sentence.split()
-                if any(punct in current_sentence for punct in [".", "?", "!", ",", ":", ";"]) or len(words) >= 5:
-                    import re
-                    # Split on punctuation if present
-                    if any(punct in current_sentence for punct in [".", "?", "!", ",", ":", ";"]):
-                        pieces = re.split(r'(?<=[.?!,:;]) +', current_sentence)
-                        for piece in pieces[:-1]:
-                            if piece.strip():
-                                sentence_queue.put(piece.strip())
-                        current_sentence = pieces[-1]
-                    else:
-                        # Split by words if it's getting too long without punctuation
-                        if len(words) >= 5:
-                            # Keep the last word in case it's currently being generated
-                            chunk_to_send = " ".join(words[:-1])
-                            if chunk_to_send.strip():
-                                sentence_queue.put(chunk_to_send.strip())
-                            current_sentence = words[-1] + (current_sentence[len(" ".join(words)):] if current_sentence.endswith(" ") else "")
-                    
-        if current_sentence.strip():
-            sentence_queue.put(current_sentence.strip())
-            
-        sentence_queue.put(None) # Signal EOF
+        # Wait for the FULL structured JSON response (no streaming)
+        response: CognitiveOutput = await llm.ainvoke(trimmed_messages)
         
-        # Wait for TTS to finish playing
-        await tts_task
+        emotion = response.emotion.upper()
+        response_text = response.response_text
         
-        # Clean up the output text to remove the emotion tag for memory
-        clean_text = full_text.split("]", 1)[1].strip() if "]" in full_text else full_text
-        ai_msg = AIMessage(content=clean_text, additional_kwargs={"emotion": emotion})
+        # Dispatch kinematic intent immediately
+        send_kinematic_intent(emotion, 0.8)
+        
+        if response_text:
+            print(f"\033[95m[Emotion: {emotion}]\033[0m \033[93m{response_text}\033[0m\n", flush=True)
+            from adapters.speaking import speak
+            # Block the async loop while TTS is playing to prevent immediate transition to listen_node
+            await asyncio.to_thread(speak, response_text)
+            
+        ai_msg = AIMessage(content=response_text, additional_kwargs={"emotion": emotion})
         
         return {
             "messages": [ai_msg],
             "current_emotion": emotion
         }
     except Exception as e:
-        logger.error(f"Streaming LLM Failed: {e}")
+        logger.error(f"LLM Generation Failed: {e}")
         return {"messages": [AIMessage(content="I am malfunctioning...")]}
 
 async def behavior_node(state: AgentState):

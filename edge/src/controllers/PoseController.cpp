@@ -60,14 +60,14 @@ void PoseController::generateOrganicSaccade(uint32_t timeMs) {
     double noiseX = generateSimpleNoise(timeMs, 1.2f); 
     double noiseY = generateSimpleNoise(timeMs + 1000, 0.8f);
 
-    double xRange = (EYES_X.maxAngle - EYES_X.minAngle) * 0.15; // 15% physical range
-    double yRange = (EYES_Y.maxAngle - EYES_Y.minAngle) * 0.15;
+    double xRange = (EYES_X.maxAngle - EYES_X.minAngle) * 0.35; // 35% physical range
+    double yRange = (EYES_Y.maxAngle - EYES_Y.minAngle) * 0.25; // 25% physical range
 
     double targetX = EYES_X.centerAngle + (noiseX * xRange);
     double targetY = EYES_Y.centerAngle + (noiseY * yRange);
 
-    moveEyesPan(targetX, 100, EASE_OUT_EXPO);
-    moveEyesTilt(targetY, 100, EASE_OUT_EXPO);
+    moveEyesPan(targetX, 800, EASE_IN_OUT_SINE);
+    moveEyesTilt(targetY, 800, EASE_IN_OUT_SINE);
     
     // Add organic neck drift (slow and visible)
     // The previous range was too small (3-5 degrees) to overcome servo deadband.
@@ -111,22 +111,22 @@ void PoseController::syncJawToAmplitude(float intensity) {
 
 void PoseController::lookLeft(int durationMs, EasingType easing) {
     moveNeckPan(NECK_ONE.maxAngle, durationMs, easing);
-    moveEyesPan(EYES_X.maxAngle, 150, EASE_OUT_EXPO);
+    moveEyesPan(EYES_X.maxAngle, durationMs, EASE_IN_OUT_CUBIC);
 }
 
 void PoseController::lookRight(int durationMs, EasingType easing) {
     moveNeckPan(NECK_ONE.minAngle, durationMs, easing);
-    moveEyesPan(EYES_X.minAngle, 150, EASE_OUT_EXPO);
+    moveEyesPan(EYES_X.minAngle, durationMs, EASE_IN_OUT_CUBIC);
 }
 
 void PoseController::lookUp(int durationMs, EasingType easing) {
     moveNeckTilt(NECK_Y.minAngle, durationMs, easing);
-    moveEyesTilt(EYES_Y.minAngle, 150, EASE_OUT_EXPO); 
+    moveEyesTilt(EYES_Y.minAngle, durationMs, EASE_IN_OUT_CUBIC); 
 }
 
 void PoseController::lookDown(int durationMs, EasingType easing) {
     moveNeckTilt(NECK_Y.maxAngle, durationMs, easing);
-    moveEyesTilt(EYES_Y.maxAngle, 150, EASE_OUT_EXPO);
+    moveEyesTilt(EYES_Y.maxAngle, durationMs, EASE_IN_OUT_CUBIC);
 }
 
 void PoseController::tiltRight(int durationMs, EasingType easing) {
@@ -193,7 +193,7 @@ void PoseController::expressSad() {
     moveEyelidRight(halfClosedRight, 250, EASE_OUT_EXPO);
     
     jawClose(400, EASE_IN_OUT_SINE);
-    lookDown(800, EASE_IN_OUT_CUBIC);
+    moveNeckTilt(NECK_Y.centerAngle + 8.0, 800, EASE_IN_OUT_CUBIC);
     moveNeckPan(NECK_ONE.centerAngle + 20, 800, EASE_IN_OUT_CUBIC);
 }
 
@@ -211,9 +211,9 @@ void PoseController::expressAngry() {
     moveEyelidLeft(EYELID_LEFT.centerAngle + 20, 150, EASE_OUT_EXPO);
     moveEyelidRight(EYELID_RIGHT.centerAngle + 20, 150, EASE_OUT_EXPO);
     
-    // Head snaps forward and down slightly
+    // Head snaps forward and down slightly (less extreme)
     moveNeckPan(NECK_ONE.centerAngle, 300, EASE_IN_OUT_CUBIC);
-    lookDown(300, EASE_IN_OUT_CUBIC);
+    moveNeckTilt(NECK_Y.centerAngle + 5.0, 300, EASE_IN_OUT_CUBIC);
     
     // Jaw clenches
     jawClose(150, EASE_IN_OUT_SINE);
@@ -237,8 +237,8 @@ void PoseController::resetToNeutral() {
     moveNeckTilt(NECK_Y.centerAngle, 600, EASE_IN_OUT_CUBIC); 
     moveNeckRoll(NECK_ROLL.centerAngle, 600, EASE_IN_OUT_CUBIC); 
     
-    moveEyesPan(EYES_X.centerAngle, 300, EASE_OUT_EXPO);
-    moveEyesTilt(EYES_Y.centerAngle, 300, EASE_OUT_EXPO);
+    moveEyesPan(EYES_X.centerAngle, 600, EASE_IN_OUT_CUBIC);
+    moveEyesTilt(EYES_Y.centerAngle, 600, EASE_IN_OUT_CUBIC);
     moveEyelidLeft(EYELID_LEFT.minAngle, 300, EASE_OUT_EXPO);
     moveEyelidRight(EYELID_RIGHT.minAngle, 300, EASE_OUT_EXPO);
     
