@@ -56,7 +56,8 @@ To ensure stability and isolate noisy components (motors) from sensitive logic (
     *   **Negative (-):** The Black wire connects the negative (-) terminal of the green block to the negative (-) terminal of the speaker.
     *   **Notes:** The wires are soldered directly to the speaker terminals and physically reinforced with adhesive tape (sellotape) for strain relief against vibrations.
 
-### 4. INMP441 (I2S Microphone)
+### 4. INMP441 (I2S Microphone) - DEFECTIVE
+*   **STATUS: HARDWARE FAILURE.** The module successfully communicates over I2S (zero crossings ~78k, static noise output) but the acoustic MEMS sensor is deaf/dead. Likely caused by poor soldering on the pins or a fried internal diaphragm from excessive heat. Host pipeline has been reverted to use the Mac's built-in microphone for now (`USE_MAC_MIC = True` in `host/core/orchestrator.py`).
 *   **Physical Position:** Right Board, straddling the central trench (Left pins in Col E, Right pins in Col F), Rows 36-38.
 *   **Power & Hardware RC Filter (Audio Upgrade):**
     *   To isolate the microphone from ESP32 Wi-Fi transmission spikes on the 3.3V line, a Hardware RC Low-Pass filter was constructed directly on the VDD line.
