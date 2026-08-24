@@ -7,7 +7,7 @@ import numpy as np
 from loguru import logger
 import concurrent.futures
 from typing import Optional
-from scipy.signal import resample as scipy_resample
+from scipy.signal import resample_poly
 
 from .mac_tts import MacTTSStrategy
 from adapters.esp32_adapter import send_kinematic_intent, _adapter, ESP32_IP
@@ -90,7 +90,7 @@ class DualTTSManager:
                         
             # 3. Robustly close the jaw to ensure it doesn't get stuck
             for _ in range(3):
-                _adapter.send_intent("JAW", intensity=0.0)
+                _adapter.send_intent("JAW_CLOSE", intensity=0.0)
                 time.sleep(0.05)
                 
             # Send TTS_COMPLETE to signal end of playback
@@ -232,8 +232,11 @@ class DualTTSManager:
 
             # Resample to protocol rate (16kHz) if needed
             if source_rate != AUDIO_SAMPLE_RATE_HZ:
-                num_target_samples = int(len(audio_np) * AUDIO_SAMPLE_RATE_HZ / source_rate)
-                audio_np = scipy_resample(audio_np, num_target_samples)
+                import math
+                gcd = math.gcd(AUDIO_SAMPLE_RATE_HZ, source_rate)
+                up = AUDIO_SAMPLE_RATE_HZ // gcd
+                down = source_rate // gcd
+                audio_np = resample_poly(audio_np, up, down)
 
             # Convert back to int16 PCM
             pcm_data = audio_np.astype(np.int16).tobytes()

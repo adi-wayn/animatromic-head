@@ -29,7 +29,7 @@ class UDPVADBridge:
         self.model.eval()
         logger.info("Silero VAD loaded.")
         
-        self.RATE = AUDIO_SAMPLE_RATE_HZ
+        self.RATE = 16000 # Hardcode to 16kHz for Silero VAD
         self.CHUNK_SIZE = 512
         self.CHUNK_DURATION_MS = int((self.CHUNK_SIZE / self.RATE) * 1000)
         
@@ -78,8 +78,27 @@ class UDPVADBridge:
                 self._pcm_remainder = raw_chunk[offset:]
 
     def _process_frame(self, frame_data: bytes):
-        # Convert to numpy array float32 (-1.0 to 1.0)
-        audio_np = np.frombuffer(frame_data, dtype=np.int16).astype(np.float32) / 32768.0
+        audio_np_32k = np.frombuffer(frame_data, dtype=np.int16).astype(np.float32) / 32768.0
+        
+        # Silero VAD strictly requires 16000Hz (or 8000Hz) and a minimum of 32ms.
+        # Since incoming is 32000Hz (512 samples = 16ms), we must downsample to 16000Hz.
+        from scipy.signal import resample_poly
+        import math
+        # downsample 32000 -> 16000
+        audio_np = resample_poly(audio_np_32k, 1, 2)
+        # Now audio_np is 16kHz (length 256). We need 512 samples (32ms) to run VAD.
+        # We will accumulate in a buffer.
+        
+        if not hasattr(self, '_16k_buffer'):
+            self._16k_buffer = []
+        
+        self._16k_buffer.append(audio_np)
+        if len(self._16k_buffer) < 2:
+            return # Need two 16ms chunks to make 32ms
+            
+        # Combine the two chunks
+        audio_np = np.concatenate(self._16k_buffer)
+        self._16k_buffer.clear()
         
         # 1. Advanced Spectral Noise Reduction (Deletes white noise)
         try:
