@@ -100,9 +100,10 @@
   - Implement the `TTS_COMPLETE` control message.
 
 - [x] **Task 4.1: Edge Audio Uplink (Microphone) [Both]**
+  - *STATUS: ROLLED BACK DUE TO HARDWARE FAILURE.* INMP441 module is defective/deaf (likely fried MEMS or bad soldering). ESP32 code maintains the robust I2S 32-bit DSP implementation for future use, but the Host Orchestrator (`USE_MAC_MIC = True`) has reverted to using the Mac's built-in PyAudio microphone.
   - Install INMP441 on the breadboard.
   - Configure I2S0 DMA in ESP-IDF.
-  - Stream chunked raw audio (PCM, 16-bit, 16kHz) over UDP to Python Host. (Remove `pyaudio` dependency from Phase 3).
+  - Stream chunked raw audio (PCM, 16-bit, 16kHz) over UDP to Python Host.
 
 - [x] **Task 4.2: Edge Audio Downlink (Speaker) [Both]**
   - Install MAX98357A on the breadboard.

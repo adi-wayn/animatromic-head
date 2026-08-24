@@ -21,7 +21,7 @@ constexpr int CPU_FREQ_LOW  = 80;
 //  RMS value (0–32767 for 16-bit PCM).
 //  Values below this are treated as silence.
 // ============================================================
-constexpr float SILENCE_RMS_THRESHOLD = 500.0f;
+constexpr float SILENCE_RMS_THRESHOLD = 200.0f;
 
 /**
  * PowerManager — Singleton

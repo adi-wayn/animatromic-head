@@ -5,9 +5,9 @@ AudioManager::AudioManager() {}
 void AudioManager::beginMic() {
     i2s_config_t i2s_mic_config = {
         .mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_RX),
-        .sample_rate = AUDIO_SAMPLE_RATE_HZ,
+        .sample_rate = AUDIO_SAMPLE_RATE_HZ, // Now 32000Hz to fix INMP441 PLL
         .bits_per_sample = I2S_BITS_PER_SAMPLE_32BIT,
-        .channel_format = I2S_CHANNEL_FMT_RIGHT_LEFT, // Captures BOTH channels
+        .channel_format = I2S_CHANNEL_FMT_RIGHT_LEFT, // Stereo avoids ESP32 ONLY_LEFT zero-bug
         .communication_format = I2S_COMM_FORMAT_STAND_I2S,
         .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1,
         .dma_buf_count = I2S_DMA_BUF_COUNT,
@@ -26,7 +26,7 @@ void AudioManager::beginMic() {
 
     i2s_driver_install(I2S_MIC_PORT, &i2s_mic_config, 0, NULL);
     i2s_set_pin(I2S_MIC_PORT, &mic_pin_config);
-    Serial.println("[AudioManager] I2S0 Microphone initialized (INMP441).");
+    Serial.println("[AudioManager] I2S0 Microphone initialized (INMP441 - 32-bit 32kHz Mode).");
 }
 
 size_t AudioManager::readMicChunk(uint8_t* buffer, size_t bufferSize) {
@@ -36,41 +36,48 @@ size_t AudioManager::readMicChunk(uint8_t* buffer, size_t bufferSize) {
     
     int32_t* rawSamples32 = (int32_t*)buffer;
     int16_t* cleanSamples16 = (int16_t*)buffer;
+    int numFrames = bytesRead / 8; // 32-bit RIGHT_LEFT = 8 bytes per frame
     
-    int numTotalWords = bytesRead / 4;       
-    int numFrames     = numTotalWords / 2;
-    
-    // Voice Band-Pass Filter (150Hz - 4000Hz)
-    // High-Pass Filter (150Hz) removes DC offset, Wi-Fi ripple, and bass hum
     const float hp_alpha = 0.944f; 
-    // Low-Pass Filter (4000Hz) removes high-pitch static and electrical hiss
     const float lp_alpha = 0.611f; 
     
     for (int i = 0; i < numFrames; i++) {
-        // Extract the 24-bit audio from the Left channel (Right is ignored).
-        // The INMP441 is a very quiet -26dBFS microphone. Normal speech registers very low.
-        // >> 6 provides a massive 1024x digital hardware gain so human speech easily triggers the VAD.
-        int32_t L = rawSamples32[i * 2] >> 6;
+        // Read both channels. One has valid 24-bit audio (huge numbers), 
+        // the other is floating (tiny thermal noise numbers).
+        int32_t sampleL = rawSamples32[i * 2];
+        int32_t sampleR = rawSamples32[i * 2 + 1];
         
-        float x = (float)L;
+        // Auto-select the active channel (bypasses DMA swap bugs and L/R wiring issues)
+        int32_t sample = (abs(sampleL) > abs(sampleR)) ? sampleL : sampleR;
         
-        // 1. High-Pass Filter (DC Blocker)
+        // INMP441 outputs 24-bit audio in a 32-bit slot, MSB-aligned.
+        // Shift right by 8 to extract the exact 24-bit value, preserving the sign bit.
+        int32_t sample24 = sample >> 8;
+        
+        // Normalize 24-bit signed integer to float [-1.0, 1.0] by dividing by 2^23 (8388608.0f)
+        float x = (float)sample24 / 8388608.0f;
+        
+        // 1. High-Pass Filter (150Hz DC Blocker)
         float hp_y = hp_alpha * (hpf_y_prev + x - hpf_x_prev);
         hpf_x_prev = x;
         hpf_y_prev = hp_y;
         
-        // 2. Low-Pass Filter (Static Remover)
+        // 2. Low-Pass Filter (4000Hz Static Remover)
         float lp_y = lpf_y_prev + lp_alpha * (hp_y - lpf_y_prev);
         lpf_y_prev = lp_y;
         
-        int32_t val32 = (int32_t)lp_y;
+        // 3. Digital Gain (64.0x) to boost quiet INMP441 speech
+        float amplified = lp_y * 64.0f; 
         
+        // 4. Quantize to 16-bit PCM and clamp to prevent overflow
+        int32_t val32 = (int32_t)(amplified * 32767.0f);
         if (val32 > 32767) val32 = 32767;
         else if (val32 < -32768) val32 = -32768;
         
         cleanSamples16[i] = (int16_t)val32;
     }
     
+    // We compressed 64-bit frames (8 bytes) into 16-bit mono frames (2 bytes), return exactly that!
     return numFrames * 2;
 }
 
