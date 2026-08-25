@@ -91,6 +91,13 @@
   - Enforce the tri-layer physical repository structure: `host/`, `protocol/`, `edge/`.
   - Update build automation scripts to maintain correct relative paths.
 
+- [x] **Task 3.7: LLM Context & TTS Voice Refinement [Software]**
+  - Disable sentence-by-sentence streaming chunk logic; LLM must generate full JSON message first.
+  - Relax "scary skull" system prompt so it acts more like a normal, highly intelligent LLM with animatronic persona.
+  - Ensure LLM successfully translates direct user commands (e.g., "look left", "be sad") into correct JSON cognitive_state and physical intents.
+  - Replace the bad XTTS reference audio sample in `host/audio/tts/dual_tts_manager.py` with a high-quality reference audio file.
+
+
 ### Phase 4: Network Audio Pipeline (Hardware Dependent)
 **Goal:** Install the I2S modules and transition the audio topology from the PC to the ESP32.
 

@@ -157,7 +157,7 @@ void idleBehaviorTask(void *pvParameters) {
             continue;
         }
 
-        if (head.isBooted() && head.getState() == SystemState::IDLE_LISTENING) {
+        if (head.isBooted() && (head.getState() == SystemState::IDLE_LISTENING || head.getState() == SystemState::SPEAKING_SYNCING)) {
             head.triggerSaccade(millis());
 
             // 15% chance to blink
@@ -167,8 +167,8 @@ void idleBehaviorTask(void *pvParameters) {
                 head.executePose("UNBLINK");
             }
 
-            // Biological delay between idle movements
-            vTaskDelay(pdMS_TO_TICKS(random(800, 2500)));
+            // Biological delay between idle movements (slower, calmer)
+            vTaskDelay(pdMS_TO_TICKS(random(2000, 5000)));
         } else {
             vTaskDelay(pdMS_TO_TICKS(500));
         }
@@ -327,8 +327,16 @@ void audioDownlinkTask(void *pvParameters) {
                 sumSquares += sample * sample;
             }
             float rms = (numSamples > 0) ? sqrtf(sumSquares / numSamples) : 0.0f;
-            float intensity = (rms / RMS_SCALER) * 3.0f;
-            audio.setAmplitude(intensity);
+            float raw_intensity = (rms / RMS_SCALER) * 2.0f; 
+            
+            // Low-pass filter (EMA) to smooth the jaw movement and prevent rapid jitter/vibration
+            // This gives the servo torque time to physically catch up with the audio peaks.
+            float currentAmp = audio.getAmplitude();
+            // A 50/50 blend gives the jaw enough torque to smooth out the audio spikes, 
+            // without suppressing the total amplitude like a 70/30 split did.
+            float smoothedIntensity = (currentAmp * 0.50f) + (raw_intensity * 0.50f);
+            
+            audio.setAmplitude(smoothedIntensity);
 
             audio.writeToSpeaker(pcmBuffer, bytesReceived);
         } else {
@@ -337,14 +345,15 @@ void audioDownlinkTask(void *pvParameters) {
                 isReceivingAudio = false;
             }
 
-            // Amplitude decay: prevents jaw snapping on dropped packets
-            // We loop every ~1ms. Packets arrive every ~32ms.
-            // 0.95^32 = 0.19 (gradual decay instead of instant 0.8^32 = 0.0007)
-            float currentAmp = audio.getAmplitude();
-            if (currentAmp > 0.01f) {
-                audio.setAmplitude(currentAmp * 0.95f);
-            } else {
-                audio.setAmplitude(0.0f);
+            // Only decay the amplitude if we haven't received a packet in 50ms.
+            // This prevents the jaw from slamming shut between normal UDP packets (which arrive every ~32ms).
+            if (millis() - lastReceiveTime > 50) {
+                float currentAmp = audio.getAmplitude();
+                if (currentAmp > 0.01f) {
+                    audio.setAmplitude(currentAmp * 0.85f);
+                } else {
+                    audio.setAmplitude(0.0f);
+                }
             }
             vTaskDelay(pdMS_TO_TICKS(1));
         }

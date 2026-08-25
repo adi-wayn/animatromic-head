@@ -108,12 +108,12 @@ Never flash the ESP32 while the servos are actively pulling power, and never con
    cd edge
    
    # Compile and upload the firmware to the ESP32
-   pio run --target upload
+   ~/.platformio/penv/bin/pio run --target upload
    ```
 4. **Power up the servos:** Once the upload says `[SUCCESS]`, plug the 5V 10A power supply back into the wall.
 5. **Monitor:** Open the serial monitor to verify the boot sequence (keep this open).
    ```bash
-   pio device monitor --baud 115200
+   ~/.platformio/penv/bin/pio device monitor --baud 115200
    ```
 
 **Expected serial output on successful boot:**
@@ -193,6 +193,13 @@ In Terminal 3 (still in the `host/` directory):
 uv run python main.py
 ```
 
+#### 🧠 Wiping AI Memory (Context Pollution)
+The Host AI pipeline uses a local SQLite database (`data/memory.db`) to remember conversation history between runs. If the AI begins acting strangely (e.g., ignoring physical commands or overusing specific words like "mortal" because it's copying its past behavior), its context has become polluted. 
+To wipe its memory and force a fresh start with clean instructions, use the `--wipe` flag:
+```bash
+uv run python main.py --wipe
+```
+
 **Expected startup output:**
 ```
 Loading Silero VAD...
@@ -260,6 +267,7 @@ And on the ESP32 serial monitor:
 |---------|----------|
 | `Could not resolve animatronic-head.local` | Set `export ESP32_IP=<ip>` from serial monitor |
 | ESP32 creates `AnimatronicHead_AP` every boot | WiFiManager lost credentials; reconnect to your Wi-Fi |
+| AI ignores commands or repeats phrases | Run `uv run python main.py --wipe` to clear polluted memory |
 | `XTTS generation failed` | Check that `host/assets/scary_voice.wav` exists (reference audio for voice cloning) |
 | `Ollama CLI not found` | Run `brew install ollama` and ensure `ollama serve` is running |
 | No audio from speaker | Check MAX98357A wiring and that GAIN pin is not grounded |

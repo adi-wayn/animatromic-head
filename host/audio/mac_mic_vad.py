@@ -77,8 +77,15 @@ class VADManager:
             with torch.no_grad():
                 speech_prob = self.model(tensor, self.RATE).item()
             
-            # Strong confidence threshold to ignore tapping/typing
-            is_speech = speech_prob > 0.5
+            from audio.tts.dual_tts_manager import dual_tts_manager
+            import time
+            is_speaking = dual_tts_manager.is_speaking_active or (time.time() - dual_tts_manager.last_speaking_end_time < 0.5)
+            
+            # Use a slightly stricter confidence threshold when the robot is speaking
+            # to prevent its own speaker echo from triggering an interrupt, but low enough
+            # so the user doesn't have to shout.
+            threshold = 0.70 if is_speaking else 0.5
+            is_speech = speech_prob > threshold
             
         except Exception as e:
             logger.error(f"VAD Error: {e}")
@@ -88,16 +95,15 @@ class VADManager:
             self.ring_buffer.append((in_data, is_speech))
             num_voiced = len([f for f, speech in self.ring_buffer if speech])
             
-            # If a sufficient number of frames are voiced (e.g. 8 frames = 256ms), trigger recording.
-            if num_voiced >= 8:
-                # IMPORTANT: If the bot is currently speaking, the microphone is picking up the bot's own voice!
-                # We must ignore this to prevent an echo loop.
-                from audio.tts.dual_tts_manager import dual_tts_manager
-                import time
-                if dual_tts_manager.is_speaking_active or (time.time() - dual_tts_manager.last_speaking_end_time < 1.0):
-                    # Clear buffer so we don't accidentally trigger later
-                    self.ring_buffer.clear()
-                    return (None, pyaudio.paContinue)
+            # Require more sustained speech to interrupt if the robot is currently speaking
+            from audio.tts.dual_tts_manager import dual_tts_manager
+            import time
+            is_speaking = dual_tts_manager.is_speaking_active or (time.time() - dual_tts_manager.last_speaking_end_time < 0.5)
+            required_frames = 12 if is_speaking else 8
+            
+            # If a sufficient number of frames are voiced, trigger recording.
+            if num_voiced >= required_frames:
+                # We are intentionally allowing the microphone to remain active while the robot speaks
                 
                 self.triggered = True
                 self.voiced_frames.extend([f for f, s in self.ring_buffer])
