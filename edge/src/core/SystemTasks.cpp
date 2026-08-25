@@ -437,3 +437,23 @@ void powerWatchdogTask(void *pvParameters) {
         vTaskDelay(pdMS_TO_TICKS(5000));
     }
 }
+
+// ============================================================
+//  Task 9: Radar Scanner (Core 1, Priority 4)
+//  NEW TASK. Continuously sweeps the ultrasonic sensor to
+//  detect approaching targets and wake up the head.
+// ============================================================
+#include "core/RadarScanner.h"
+
+void radarScannerTask(void *pvParameters) {
+    (void) pvParameters;
+
+    RadarScanner& radar = RadarScanner::getInstance();
+    radar.begin();
+
+    while (true) {
+        radar.update();
+        // Yield to allow idle behaviors and kinematics to run
+        vTaskDelay(pdMS_TO_TICKS(5));
+    }
+}
