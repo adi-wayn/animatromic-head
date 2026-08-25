@@ -119,6 +119,13 @@ The PCA9685 controls 16 channels (addresses 0 to 15) corresponding to the variou
 *   **Channel 9:** `NECK_ROLL` (MG995 servo) - Controls head tilting/roll.
 *   **Channel 10-15:** *Unassigned*
 
+### 6. HC-SR05 (Ultrasonic Sensor)
+*   **Physical Integration (Testing Phase):** Being prepared for distance sensing to allow physical orientation towards users.
+*   **Power & Data Connections:**
+    *   **VCC:** Connected to 5V (from external power supply or 5V rail).
+    *   **GND:** Connected to Common GND.
+    *   **Trig (Trigger):** Connected to **GPIO 13** on the ESP32 (configured as OUTPUT).
+    *   **Echo (Receive):** Connected to **GPIO 5** on the ESP32 (configured as INPUT).
 ## 3. Mechanical Assembly & 3D Model Notes
 *   **Model:** Animatronic Skull by Djfx on Thingiverse (https://www.thingiverse.com/thing:2456550)
 *   **Jaw Articulation:** The jaw swings slightly forward when opening for realistic speech (Open/Close pitch and Left/Right yaw).

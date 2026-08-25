@@ -21,6 +21,7 @@ void idleBehaviorTask(void *pvParameters);
 void audioUplinkTask(void *pvParameters);
 void audioDownlinkTask(void *pvParameters);
 void telemetryTask(void *pvParameters);
-void powerWatchdogTask(void *pvParameters);  // NEW: monitors inactivity, triggers power transitions
+void powerWatchdogTask(void *pvParameters);
+void radarScannerTask(void *pvParameters);
 
 #endif

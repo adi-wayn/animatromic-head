@@ -20,4 +20,14 @@ constexpr ServoConfig EYES_Y      = { 7, 30.0, 150.0, 90.0 };
 constexpr ServoConfig JAW_LR      = { 8, 85.0, 135.0, 110.0 };
 constexpr ServoConfig NECK_ROLL   = { 9, 30.0, 140.0, 60.0 };
 
+// ---------------------------------------------------------
+// HC-SR05 Ultrasonic Radar Configuration
+// ---------------------------------------------------------
+#define RADAR_TRIG_PIN 13
+#define RADAR_ECHO_PIN 5
+#define RADAR_SERVO_CHANNEL 12
+#define RADAR_THRESHOLD_CM 100.0
+#define RADAR_OFFSET_X_CM -30.0  // 30cm to the left
+#define RADAR_OFFSET_Y_CM 30.0   // 30cm forward (up in 2D plane)
+
 #endif // CONFIG_H

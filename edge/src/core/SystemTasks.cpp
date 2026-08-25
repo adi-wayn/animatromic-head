@@ -1,3 +1,4 @@
+#include "core/RadarScanner.h"
 #include "core/SystemTasks.h"
 #include <Arduino.h>
 #include "controllers/AnimatronicHead.h"
@@ -306,6 +307,7 @@ void audioDownlinkTask(void *pvParameters) {
             if (!isReceivingAudio) {
                 Serial.println("[AudioDownlink] START: Receiving TTS audio from Host. Sending to MAX98357A...");
                 isReceivingAudio = true;
+                RadarScanner::getInstance().setPaused(true);
             }
             lastReceiveTime = millis();
 
@@ -321,13 +323,22 @@ void audioDownlinkTask(void *pvParameters) {
             // Calculate RMS for Lip-Sync
             int16_t* samples = (int16_t*)pcmBuffer;
             int numSamples   = bytesReceived / 2;
+            
+            // Apply Low-Pass Filter to remove high-frequency grain and noise
+            static float filterState = 0.0f;
+            const float alpha = 0.6f;
+            for (int i = 0; i < numSamples; i++) {
+                float sampleVal = (float)samples[i];
+                filterState = filterState + alpha * (sampleVal - filterState);
+                samples[i] = (int16_t)filterState;
+            }
             float sumSquares = 0.0f;
             for (int i = 0; i < numSamples; i++) {
                 float sample = (float)samples[i];
                 sumSquares += sample * sample;
             }
             float rms = (numSamples > 0) ? sqrtf(sumSquares / numSamples) : 0.0f;
-            float raw_intensity = (rms / RMS_SCALER) * 2.0f; 
+            float raw_intensity = (rms / RMS_SCALER) * 1.7f; // 2.0f * 0.85 (reduced by 15%) 
             
             // Low-pass filter (EMA) to smooth the jaw movement and prevent rapid jitter/vibration
             // This gives the servo torque time to physically catch up with the audio peaks.
@@ -343,6 +354,7 @@ void audioDownlinkTask(void *pvParameters) {
             if (isReceivingAudio && (millis() - lastReceiveTime > 500)) {
                 Serial.println("[AudioDownlink] END: Audio stream finished. Stopped sending to MAX98357A.");
                 isReceivingAudio = false;
+                RadarScanner::getInstance().setPaused(false);
             }
 
             // Only decay the amplitude if we haven't received a packet in 50ms.
@@ -435,5 +447,24 @@ void powerWatchdogTask(void *pvParameters) {
 
         // Check every 5 seconds — very low CPU cost
         vTaskDelay(pdMS_TO_TICKS(5000));
+    }
+}
+
+// ============================================================
+//  Task 9: Radar Scanner (Core 1, Priority 4)
+//  NEW TASK. Continuously sweeps the ultrasonic sensor to
+//  detect approaching targets and wake up the head.
+// ============================================================
+
+void radarScannerTask(void *pvParameters) {
+    (void) pvParameters;
+
+    RadarScanner& radar = RadarScanner::getInstance();
+    radar.begin();
+
+    while (true) {
+        radar.update();
+        // Yield to allow idle behaviors and kinematics to run
+        vTaskDelay(pdMS_TO_TICKS(5));
     }
 }

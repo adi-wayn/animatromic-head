@@ -265,6 +265,10 @@ class DualTTSManager:
                 down = source_rate // gcd
                 audio_np = resample_poly(audio_np, up, down)
 
+            # Boost volume by 2.5x for the MAX98357A hardware
+            audio_np = audio_np * 2.5
+            np.clip(audio_np, -32768.0, 32767.0, out=audio_np)
+
             # Convert back to int16 PCM
             pcm_data = audio_np.astype(np.int16).tobytes()
 
@@ -274,6 +278,9 @@ class DualTTSManager:
             dest = (ESP32_IP, PORT_AUDIO_DOWNLINK)
 
             offset = 0
+            start_time = time.time()
+            chunks_sent = 0
+            
             while offset < len(pcm_data) and not self.is_interrupted:
                 chunk = pcm_data[offset:offset + AUDIO_CHUNK_SIZE_BYTES]
                 
@@ -281,21 +288,27 @@ class DualTTSManager:
                     chunk += b'\x00' * (AUDIO_CHUNK_SIZE_BYTES - len(chunk))
                 
                 self.udp_sock.sendto(chunk, dest)
+                chunks_sent += 1
 
                 chunk_np = np.frombuffer(chunk, dtype=np.int16).astype(np.float32)
                 if len(chunk_np) > 0:
                     rms = np.sqrt(np.mean(np.square(chunk_np)))
                     intensity = min(1.0, rms / RMS_SCALER * 3.0)
-                    
-                    # Threshold for neural TTS background noise
                     if intensity < 0.05:
                         intensity = 0.0
-                        
-                    # _adapter.send_intent("JAW", intensity=intensity) // Removed to prevent UDP flood, ESP32 does RMS natively
-
 
                 offset += AUDIO_CHUNK_SIZE_BYTES
-                time.sleep(chunk_duration_sec * 0.8)
+                
+                # Precise pacing based on actual elapsed time instead of blind sleeping
+                expected_time = chunks_sent * chunk_duration_sec
+                elapsed_time = time.time() - start_time
+                sleep_time = expected_time - elapsed_time
+                
+                if sleep_time > 0:
+                    time.sleep(sleep_time)
+                else:
+                    # If we fall behind, yield briefly to avoid locking the thread
+                    time.sleep(0.001)
 
         except Exception as e:
             logger.error(f"Playback error: {e}")
