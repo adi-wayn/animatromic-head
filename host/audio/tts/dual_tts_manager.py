@@ -265,6 +265,10 @@ class DualTTSManager:
                 down = source_rate // gcd
                 audio_np = resample_poly(audio_np, up, down)
 
+            # Boost volume by 2.5x for the MAX98357A hardware
+            audio_np = audio_np * 2.5
+            np.clip(audio_np, -32768.0, 32767.0, out=audio_np)
+
             # Convert back to int16 PCM
             pcm_data = audio_np.astype(np.int16).tobytes()
 

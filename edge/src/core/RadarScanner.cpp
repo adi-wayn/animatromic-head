@@ -5,16 +5,24 @@
 #include "hardware/PCA9685_Driver.h"
 #include "controllers/AnimatronicHead.h"
 #include <math.h>
+#include "controllers/AudioManager.h"
+#include "core/VoiceClips.h"
+
 
 RadarScanner::RadarScanner() 
     : movingForward(true), currentAngle(MIN_ANGLE), 
-      state(RadarState::SWEEPING), stateStartTime(0), tentativeAngle(90.0), lastLogTime(0) {
+      state(RadarState::SWEEPING), stateStartTime(0), tentativeAngle(90.0), lastLogTime(0), isPaused(false) {
 }
 
 void RadarScanner::begin() {
     pinMode(RADAR_TRIG_PIN, OUTPUT);
     pinMode(RADAR_ECHO_PIN, INPUT);
     digitalWrite(RADAR_TRIG_PIN, LOW);
+}
+
+
+void RadarScanner::setPaused(bool paused) {
+    isPaused = paused;
 }
 
 float RadarScanner::getDistanceCm() {
@@ -47,6 +55,8 @@ double RadarScanner::calculateHeadPanAngle(float distanceCm, double radarAngle) 
 }
 
 void RadarScanner::update() {
+    if (isPaused) return;
+
     safeSetServoAngle(RADAR_SERVO_CHANNEL, currentAngle, 0.0, 180.0);
     vTaskDelay(pdMS_TO_TICKS(15)); 
 
@@ -105,8 +115,23 @@ void RadarScanner::update() {
                         EasingType::EASE_IN_OUT_CUBIC
                     );
 
+                    // Pick a random phrase and play it!
+                    SystemState oldState = AnimatronicHead::getInstance().getState();
+                    AnimatronicHead::getInstance().setState(SystemState::SPEAKING_SYNCING);
+                    
+                    int clipIndex = esp_random() % 3;
+                    if (clipIndex == 0) {
+                        AudioManager::getInstance().playLocalClip(voice1_raw, voice1_raw_len);
+                    } else if (clipIndex == 1) {
+                        AudioManager::getInstance().playLocalClip(voice2_raw, voice2_raw_len);
+                    } else {
+                        AudioManager::getInstance().playLocalClip(voice3_raw, voice3_raw_len);
+                    }
+                    
+                    AnimatronicHead::getInstance().setState(oldState);
+
                     state = RadarState::COOLDOWN;
-                    stateStartTime = now;
+                    stateStartTime = millis(); // Reset now because playLocalClip takes ~1 second
                 }
             } else {
                 Serial.println("[Radar] Target lost during verification. Resuming sweep.");
