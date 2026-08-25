@@ -6,7 +6,7 @@
     "TELEMETRY": 4213
   },
   "audio_format": {
-    "sample_rate_hz": 16000,
+    "sample_rate_hz": 32000,
     "bit_depth": 16,
     "channels": 1,
     "chunk_size_bytes": 1024,

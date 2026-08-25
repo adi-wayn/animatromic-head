@@ -16,6 +16,13 @@ class TTSStrategy(ABC):
         pass
         
     @abstractmethod
+    def synthesize_stream(self, text: str):
+        """
+        Yields raw PCM audio bytes in chunks as they are generated.
+        """
+        pass
+        
+    @abstractmethod
     def stop(self):
         """
         Stops any ongoing synthesis (used during interruption).
