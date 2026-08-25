@@ -26,7 +26,7 @@ constexpr ServoConfig NECK_ROLL   = { 9, 30.0, 140.0, 60.0 };
 #define RADAR_TRIG_PIN 13
 #define RADAR_ECHO_PIN 5
 #define RADAR_SERVO_CHANNEL 12
-#define RADAR_THRESHOLD_CM 70.0
+#define RADAR_THRESHOLD_CM 100.0
 #define RADAR_OFFSET_X_CM -30.0  // 30cm to the left
 #define RADAR_OFFSET_Y_CM 30.0   // 30cm forward (up in 2D plane)
 

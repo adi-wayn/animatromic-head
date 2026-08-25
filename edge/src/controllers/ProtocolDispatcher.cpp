@@ -50,6 +50,7 @@ void jsonParserTask(void *pvParameters) {
                 switch (msg.type) {
                     case MessageType::EMERGENCY_STOP:
                         head.setState(SystemState::INTERRUPTED);
+                        AudioManager::getInstance().cancelLocalPlayback();
                         AudioManager::getInstance().flushSpeaker();
                         PoseController::getInstance().executePose("JAW_CLOSE");
                         Serial.println("[Dispatcher] State Changed: INTERRUPTED");

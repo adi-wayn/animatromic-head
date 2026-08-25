@@ -1,3 +1,4 @@
+#include "core/RadarScanner.h"
 #include "controllers/AudioManager.h"
 
 AudioManager::AudioManager() {}
@@ -168,8 +169,67 @@ int AudioManager::receiveFromHost(uint8_t* buffer, size_t maxLen) {
 }
 
 void AudioManager::writeToSpeaker(const uint8_t* data, size_t len) {
+    // If the host starts talking, automatically interrupt the local idle clip
+    cancelLocalPlayback();
+
     size_t bytesWritten = 0;
     i2s_write(I2S_SPK_PORT, data, len, &bytesWritten, portMAX_DELAY);
+}
+
+void AudioManager::playLocalClip(const uint8_t* pcmData, size_t len) {
+    RadarScanner::getInstance().setPaused(true);
+    size_t offset = 0;
+    const size_t chunkSize = 1024;
+    isLocalPlaybackCancelled = false; // Reset flag
+    
+    while (offset < len && !isLocalPlaybackCancelled) {
+        size_t currentChunk = (len - offset > chunkSize) ? chunkSize : (len - offset);
+        
+        // Calculate amplitude for this chunk to drive lip sync
+        // NOTE: pcmData is in flash (const), so we must copy it to a RAM buffer if we want to filter it.
+        // We will allocate a temporary RAM buffer for filtering and playback.
+        int16_t ramSamples[512]; // max chunkSize is 1024 bytes (512 samples)
+        int16_t* samples = (int16_t*)(pcmData + offset);
+        int numSamples = currentChunk / 2;
+        
+        // Apply Low-Pass Filter to remove high-frequency grain
+        static float filterState = 0.0f;
+        const float alpha = 0.6f;
+        for (int i = 0; i < numSamples; i++) {
+            float sampleVal = (float)samples[i];
+            filterState = filterState + alpha * (sampleVal - filterState);
+            ramSamples[i] = (int16_t)filterState;
+        }
+        
+        samples = ramSamples; // Use the filtered RAM buffer for RMS and playback
+        int64_t sumSquare = 0;
+        for (int i = 0; i < numSamples; i++) {
+            int16_t s = samples[i];
+            sumSquare += (int32_t)s * s;
+        }
+        float rms = 0.0f;
+        if (numSamples > 0) {
+            rms = sqrt((float)sumSquare / numSamples);
+        }
+        
+        float intensity = rms / 32768.0f;
+        intensity *= 2.55f; // 3.0f * 0.85 (reduced by 15%)
+        
+        setAmplitude(intensity);
+        
+        size_t bytesWritten = 0;
+        i2s_write(I2S_SPK_PORT, (const uint8_t*)samples, currentChunk, &bytesWritten, portMAX_DELAY);
+        offset += currentChunk;
+    }
+    
+    // Silence when done
+    setAmplitude(0.0f);
+    flushSpeaker();
+    RadarScanner::getInstance().setPaused(false);
+}
+
+void AudioManager::cancelLocalPlayback() {
+    isLocalPlaybackCancelled = true;
 }
 
 void AudioManager::flushSpeaker() {
@@ -178,7 +238,6 @@ void AudioManager::flushSpeaker() {
 }
 
 void AudioManager::setAmplitude(float intensity) {
-    // Clamp between 0.0 and 1.0
     if (intensity < 0.0f) intensity = 0.0f;
     if (intensity > 1.0f) intensity = 1.0f;
     currentAmplitude = intensity;

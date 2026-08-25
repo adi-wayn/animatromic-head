@@ -47,6 +47,12 @@ public:
     // Write a raw PCM chunk to the MAX98357A via I2S1 DMA (blocking)
     void writeToSpeaker(const uint8_t* data, size_t len);
 
+    // Play a local PCM clip (blocking or chunked)
+    void playLocalClip(const uint8_t* pcmData, size_t len);
+
+    // Cancel any currently playing local clip
+    void cancelLocalPlayback();
+
     // Zero the I2S1 DMA buffer (for EMERGENCY_STOP silence)
     void flushSpeaker();
 
@@ -75,6 +81,7 @@ private:
     // 32-bit floats are naturally atomic on ESP32, but we use volatile 
     // to prevent compiler caching across cores.
     volatile float currentAmplitude = 0.0f;
+    volatile bool isLocalPlaybackCancelled = false;
 };
 
 #endif
