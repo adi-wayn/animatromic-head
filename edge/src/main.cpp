@@ -38,6 +38,7 @@ void setup() {
     xTaskCreatePinnedToCore(jsonParserTask,     "JSON_Parser",   4096, NULL, 10, NULL, 1);
     xTaskCreatePinnedToCore(kinematicsTask,     "Kinematics",    4096, NULL,  5, NULL, 1);
     xTaskCreatePinnedToCore(telemetryTask,      "Telemetry",     4096, NULL,  5, NULL, 1);
+    xTaskCreatePinnedToCore(radarScannerTask,   "Radar_Scan",    4096, NULL,  4, NULL, 1);
     xTaskCreatePinnedToCore(idleBehaviorTask,   "Idle_Behavior", 4096, NULL,  3, NULL, 1);
     xTaskCreatePinnedToCore(staggeredBootTask,  "Boot",          4096, NULL,  2, NULL, 1);
     xTaskCreatePinnedToCore(powerWatchdogTask,  "Power_WDT",     2048, NULL,  1, NULL, 1);
