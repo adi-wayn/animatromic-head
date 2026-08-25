@@ -60,8 +60,8 @@ void PoseController::generateOrganicSaccade(uint32_t timeMs) {
     double noiseX = generateSimpleNoise(timeMs, 1.2f); 
     double noiseY = generateSimpleNoise(timeMs + 1000, 0.8f);
 
-    double xRange = (EYES_X.maxAngle - EYES_X.minAngle) * 0.35; // 35% physical range
-    double yRange = (EYES_Y.maxAngle - EYES_Y.minAngle) * 0.25; // 25% physical range
+    double xRange = (EYES_X.maxAngle - EYES_X.minAngle) * 0.08; // 8% physical range (small natural twitches)
+    double yRange = (EYES_Y.maxAngle - EYES_Y.minAngle) * 0.05; // 5% physical range (vertical is usually less)
 
     double targetX = EYES_X.centerAngle + (noiseX * xRange);
     double targetY = EYES_Y.centerAngle + (noiseY * yRange);
@@ -91,14 +91,12 @@ void PoseController::generateOrganicSaccade(uint32_t timeMs) {
 }
 
 void PoseController::syncJawToAmplitude(float intensity) {
-    // 1. Primary axis (Open/Close)
-    // intensity 0.0 = Closed (maxAngle)
-    // intensity 1.0 = Open (minAngle)
+    // MAPPING: maxAngle = CLOSED (High angle), minAngle = OPEN (Low angle)
     double rangeUD = JAW_UD.maxAngle - JAW_UD.minAngle;
     double targetUD = JAW_UD.maxAngle - (intensity * rangeUD);
     
-    // Smooth the movement by updating the target continuously at 60Hz.
-    // Setting duration to 0 prevents triggerMove from resetting the easing curve to time=0 every frame.
+    // Setting duration to 0 is CRITICAL because this function is called continuously.
+    // If >0, the KinematicEngine resets the start time every frame and the servo never moves!
     moveJawUD(targetUD, 0, EASE_IN_OUT_SINE);
     
     // 2. Secondary axis (Organic texture - LR)
@@ -202,7 +200,7 @@ void PoseController::expressThinking() {
     moveEyelidRight(EYELID_RIGHT.centerAngle, 200, EASE_OUT_EXPO);
     
     lookUp(600, EASE_IN_OUT_CUBIC);
-    tiltRight(500, EASE_IN_OUT_CUBIC);
+    moveNeckRoll(NECK_ROLL.centerAngle + 15, 500, EASE_IN_OUT_CUBIC);
     jawClose(200, EASE_IN_OUT_SINE);
 }
 

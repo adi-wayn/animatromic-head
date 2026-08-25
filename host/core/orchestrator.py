@@ -35,9 +35,9 @@ class CognitiveOrchestrator:
             logger.info("Configuration: Using ESP32 UDP Mic for VAD")
             self.vad_manager = UDPVADBridge(audio_rx_queue, self.segment_queue)
         
-        # PRELOAD: Force XTTS to load into RAM now so the first response is instantaneous
-        logger.info("Preloading XTTS model to eliminate first-time latency...")
-        _ = dual_tts_manager.xtts
+        # PRELOAD: Force TTS to load into RAM now so the first response is instantaneous
+        logger.info("Preloading TTS model to eliminate first-time latency...")
+        _ = dual_tts_manager.tts
         
         # Register VAD interrupt callback
         self.vad_manager.register_interrupt_callback(self.handle_interrupt)
