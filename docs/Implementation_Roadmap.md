@@ -141,6 +141,14 @@
 
 ---
 
+### Phase 7: Ultrasonic Hardware Integration (Current)
+**Goal:** Integrate ultrasonic proximity sensors (HC-SR05) to allow the head to physically orient toward approaching users.
+
+- [x] **Task 7.1: Standalone Hardware Verification (`edge/test_hardware`)**
+  - Created an isolated PlatformIO environment `[env:test_hardware]` to test PCA9685 servos alongside HC-SR05 distance measurement.
+  - Test loop uses `millis()` to avoid FreeRTOS blocking, verifying wiring (Trig GPIO 13, Echo GPIO 5) before integration into the main kinematic engine.
+
+
 ### Phase 6: ESP32 Resource & Power Optimization ✅ COMPLETE
 **Goal:** Minimize CPU, power, and I2C bus consumption when the system is idle.
 **Branch:** `feature/esp32-power-optimization`
