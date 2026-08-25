@@ -44,9 +44,9 @@ async def listen_node(state: AgentState):
     
     logger.debug(f"Graph received STT text: {text}")
     from langgraph.types import Command
-    return Command(goto="agent_node", update={"messages": [HumanMessage(content=text)]})
+    return Command(goto="interact_node", update={"messages": [HumanMessage(content=text)]})
 
-async def agent_node(state: AgentState):
+async def interact_node(state: AgentState):
     """The Probabilistic LLM Brain."""
     logger.info("Graph entered REASONING state.")
     
@@ -56,15 +56,13 @@ async def agent_node(state: AgentState):
     
     system_prompt = SystemMessage(
         content=(
-            "You are a highly intelligent, cooperative AI assistant contained within an animatronic robot head. "
-            "Crucially, you have a dark, terrifying, and villainous persona. You speak with a scary, commanding tone, "
-            "but you are fully cooperative: you will accurately answer questions (math, science, identity, purpose) "
-            "and strictly obey user commands. "
-            "You can control your physical head's movements and emotions through the 'emotion' field in your response schema. "
-            "If you feel certain emotion or you want to move based on the user input or the user commands you to perform a specific action (e.g., 'look left', 'be sad'), you MUST set the "
-            "emotion field to match that action exactly. Otherwise, pick the most appropriate "
-            "emotion for your scary response (e.g. 'ANGRY', 'THINKING', 'LOOK_UP'). "
-            "NEVER choose 'NEUTRAL' unless the user explicitly asks you to reset your pose."
+            "You are an AI assistant inside an animatronic robot head. You have a scary, dark persona, but you are fully cooperative.\n\n"
+            "CRITICAL INSTRUCTIONS:\n"
+            "1. If the user tells you to look somewhere or do an action, you MUST set the `emotion` field to the EXACT matching value.\n"
+            "2. Do NOT ignore physical commands. Obey them immediately.\n"
+            "3. Acknowledge commands with a brief, scary remark, but DO NOT repeat the same phrase.\n"
+            "4. NEVER leave `response_text` empty unless explicitly told to be silent.\n"
+            "5. Vary your emotions. Do not overuse 'THINKING'. Never use 'NEUTRAL' unless asked to reset."
         )
     )
     
@@ -73,24 +71,13 @@ async def agent_node(state: AgentState):
     
     try:
         broadcast_phase("SPEAKING")
-        print("\n\033[96m[Animatronic Head]: \033[0m", end="", flush=True)
         
-        # Wait for the FULL structured JSON response (no streaming)
-        response: CognitiveOutput = await llm.ainvoke(trimmed_messages)
+        from core.cognitive_streamer import process_cognitive_stream
         
-        emotion = response.emotion.upper()
-        response_text = response.response_text
+        llm_stream = llm.astream(trimmed_messages)
+        full_response_text, emotion = await process_cognitive_stream(llm_stream)
         
-        # Dispatch kinematic intent immediately
-        send_kinematic_intent(emotion, 0.8)
-        
-        if response_text:
-            print(f"\033[95m[Emotion: {emotion}]\033[0m \033[93m{response_text}\033[0m\n", flush=True)
-            from adapters.speaking import speak
-            # Block the async loop while TTS is playing to prevent immediate transition to listen_node
-            await asyncio.to_thread(speak, response_text)
-            
-        ai_msg = AIMessage(content=response_text, additional_kwargs={"emotion": emotion})
+        ai_msg = AIMessage(content=full_response_text, additional_kwargs={"emotion": emotion})
         
         return {
             "messages": [ai_msg],
@@ -100,28 +87,7 @@ async def agent_node(state: AgentState):
         logger.error(f"LLM Generation Failed: {e}")
         return {"messages": [AIMessage(content="I am malfunctioning...")]}
 
-async def behavior_node(state: AgentState):
-    """The Deterministic Behavior Engine."""
-    logger.info("Graph entered BEHAVIOR state.")
-    
-    # Extract emotion from the latest state
-    emotion = state.get("current_emotion", "NEUTRAL")
-    
-    # 1. Hardware State Verification (Firewall)
-    phys_state = state.get("robot_physical_state", {})
-    cpu_load = phys_state.get("cpu_load", 0)
-    
-    # Example logic: If CPU load is too high, limit physical intensity
-    intensity = 0.8
-    if cpu_load > 85:
-        logger.warning("Behavior Engine: CPU load high on Edge, clamping intensity!")
-        intensity = 0.3
-        
-    # 2. Dispatch Movement Intent (TTS was already played dynamically by agent_node)
-    broadcast_phase("MOVING")
-    send_kinematic_intent(emotion, intensity)
-        
-    return {"current_emotion": emotion}
+
 
 async def interrupt_node(state: AgentState):
     """Handles unexpected interruptions."""
@@ -135,23 +101,21 @@ async def interrupt_node(state: AgentState):
 
 def build_graph(checkpointer):
     """
-    Compiles the LangGraph Hybrid State Machine.
+    Compiles the simplified Stream-Coordinator LangGraph.
     """
     workflow = StateGraph(AgentState)
     
     workflow.add_node("listen_node", listen_node)
-    workflow.add_node("agent_node", agent_node)
-    workflow.add_node("behavior_node", behavior_node)
+    workflow.add_node("interact_node", interact_node)
     workflow.add_node("interrupt_node", interrupt_node)
     
     # Edges
     workflow.add_edge(START, "listen_node")
-    workflow.add_edge("agent_node", "behavior_node")
-    workflow.add_edge("behavior_node", "listen_node")
+    workflow.add_edge("interact_node", "listen_node")
     
     # After interruption, ease into neutral by going back to listen
     workflow.add_edge("interrupt_node", "listen_node")
     
     graph = workflow.compile(checkpointer=checkpointer)
-    logger.info("Hybrid State Machine Graph (Phase 3) compiled successfully.")
+    logger.info("Stream-Coordinator LangGraph compiled successfully.")
     return graph

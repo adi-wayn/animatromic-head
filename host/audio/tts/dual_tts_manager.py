@@ -24,7 +24,7 @@ class DualTTSManager:
     Audio is streamed to the ESP32 MAX98357A over UDP (port 4212).
     """
     def __init__(self):
-        self._xtts = None
+        self._tts = None
         self.udp_sock = _socket.socket(_socket.AF_INET, _socket.SOCK_DGRAM)
         self.is_interrupted = False
         self.is_speaking_active = False
@@ -32,11 +32,30 @@ class DualTTSManager:
         self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=2)
 
     @property
-    def xtts(self):
-        if self._xtts is None:
-            from .xtts_tts import XTTSStrategy
-            self._xtts = XTTSStrategy()
-        return self._xtts
+    def tts(self):
+        if self._tts is None:
+            import os
+            # Fully decoupled TTS selection via Environment Variable (defaults to Piper with Alan voice)
+            tts_provider = os.getenv("TTS_PROVIDER", "kokoro").lower()
+            
+            if tts_provider == "xtts":
+                from .xtts_tts import XTTSStrategy
+                self._tts = XTTSStrategy()
+            elif tts_provider == "kokoro":
+                from .kokoro_tts import KokoroTTSStrategy
+                voice = os.getenv("KOKORO_VOICE", "am_echo")
+                self._tts = KokoroTTSStrategy(voice=voice)
+            elif tts_provider == "piper":
+                from .piper_tts import PiperTTSStrategy
+                model = os.getenv("PIPER_MODEL", "models/en_GB-alan-medium.onnx")
+                self._tts = PiperTTSStrategy(model_path=model)
+            elif tts_provider == "mac":
+                from .mac_tts import MacTTSStrategy
+                self._tts = MacTTSStrategy()
+            else:
+                raise ValueError(f"Unknown TTS provider: {tts_provider}")
+                
+        return self._tts
 
     def speak(self, text: str):
         """
@@ -56,7 +75,7 @@ class DualTTSManager:
             if not sentences:
                 sentences = [text]
                 
-            logger.info(f"Attempting XTTS generation (pipelined over {len(sentences)} sentences)...")
+            logger.info(f"Attempting TTS generation (pipelined over {len(sentences)} sentences)...")
             
             audio_queue = queue.Queue()
             
@@ -66,13 +85,13 @@ class DualTTSManager:
                         break
                     try:
                         # Iterate through sub-sentence audio chunks
-                        for chunk_bytes in self.xtts.synthesize_stream(sentence):
+                        for chunk_bytes in self.tts.synthesize_stream(sentence):
                             if self.is_interrupted:
                                 break
                             if chunk_bytes:
                                 audio_queue.put(chunk_bytes)
                     except Exception as e:
-                        logger.error(f"XTTS pipeline failed on sentence: {e}")
+                        logger.error(f"TTS pipeline failed on sentence: {e}")
                 audio_queue.put(None) # EOF marker
                 
             gen_thread = self.executor.submit(generator_worker)
@@ -140,15 +159,15 @@ class DualTTSManager:
                     if not sentence.strip():
                         continue
                         
-                    logger.info(f"XTTS generating sentence: {sentence}")
+                    logger.info(f"TTS generating sentence: {sentence}")
                     try:
-                        for chunk_bytes in self.xtts.synthesize_stream(sentence):
+                        for chunk_bytes in self.tts.synthesize_stream(sentence):
                             if self.is_interrupted:
                                 break
                             if chunk_bytes:
                                 audio_queue.put(chunk_bytes)
                     except Exception as e:
-                        logger.error(f"XTTS pipeline failed on sentence: {e}")
+                        logger.error(f"TTS pipeline failed on sentence: {e}")
                         
                 audio_queue.put(None) # EOF marker
                 
@@ -200,7 +219,15 @@ class DualTTSManager:
         """Called by VAD when user speaks."""
         logger.info("DualTTSManager interrupted!")
         self.is_interrupted = True
-        self.xtts.stop()
+        self.tts.stop()
+        
+        # Instantly tell the ESP32 to flush its audio buffer and stop lip-syncing
+        try:
+            from adapters.esp32_adapter import send_emergency_stop
+            send_emergency_stop()
+            logger.info("Emergency stop intent sent to edge.")
+        except Exception as e:
+            logger.error(f"Failed to send emergency stop: {e}")
 
     def _play_with_lip_sync(self, audio_bytes: bytes):
         """

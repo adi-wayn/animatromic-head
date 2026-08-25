@@ -1,55 +1,60 @@
 from .base import TTSStrategy
-from piper.voice import PiperVoice
 from loguru import logger
 import os
-import wave
+import subprocess
 import io
 
 class PiperTTSStrategy(TTSStrategy):
     """
-    Piper TTS integration for ultra-fast, local, offline neural TTS.
-    Uses ONNX models.
+    Piper TTS integration using the 'piper' CLI binary.
+    This avoids the espeak-ng-data path issues on macOS while retaining Piper's zero-latency speed.
     """
-    def __init__(self, model_path: str = "models/en_US-bryce-medium.onnx"):
+    def __init__(self, model_path: str = "models/en_GB-alan-medium.onnx"):
         self._is_interrupted = False
         self.model_path = os.path.abspath(model_path)
         
-        logger.info(f"Loading Piper TTS model: {self.model_path}")
+        logger.info(f"Loading Piper TTS (CLI Strategy) model: {self.model_path}")
         if not os.path.exists(self.model_path):
             logger.error(f"Piper model not found at {self.model_path}")
-            self.voice = None
-            return
-            
-        self.voice = PiperVoice.load(self.model_path)
-        logger.info("Piper TTS model loaded successfully.")
 
     def synthesize(self, text: str) -> bytes:
         self._is_interrupted = False
-        if not self.voice:
+        if not os.path.exists(self.model_path):
             return b""
             
         try:
-            logger.debug(f"Piper synthesizing: {text}")
+            logger.debug(f"Piper CLI synthesizing: {text}")
             
-            wav_io = io.BytesIO()
-            with wave.open(wav_io, 'wb') as wav_file:
-                # Piper outputs 16-bit mono PCM. 
-                # The sample rate depends on the voice (often 16000 or 22050)
-                wav_file.setnchannels(1)
-                wav_file.setsampwidth(2)
-                wav_file.setframerate(self.voice.config.sample_rate)
+            # Use standalone piper CLI to write WAV bytes to stdout
+            piper_bin = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "bin", "piper", "piper")
+            
+            cmd = [
+                piper_bin,
+                "--model", self.model_path,
+                "--output_file", "-"  # Write to stdout
+            ]
+            
+            process = subprocess.Popen(
+                cmd,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
+            )
+            
+            stdout_data, stderr_data = process.communicate(input=text.encode("utf-8"))
+            
+            if process.returncode != 0:
+                logger.error(f"Piper CLI error: {stderr_data.decode('utf-8')}")
+                return b""
                 
-                # Synthesize directly writes to the wave file
-                self.voice.synthesize(text, wav_file)
-                
-            return wav_io.getvalue()
+            return stdout_data
         except Exception as e:
             logger.error(f"Piper TTS synthesis failed: {e}")
             return b""
             
     def synthesize_stream(self, text: str):
         """
-        Piper synthesizes extremely fast. We can just yield the full sentence.
+        Yields the full synthesized WAV to ensure compatibility.
         """
         self._is_interrupted = False
         audio = self.synthesize(text)

@@ -44,3 +44,9 @@ class MacTTSStrategy(TTSStrategy):
 
     def stop(self):
         self._is_interrupted = True
+
+    def synthesize_stream(self, text: str):
+        self._is_interrupted = False
+        audio = self.synthesize(text)
+        if not self._is_interrupted and audio:
+            yield audio

@@ -1,9 +1,18 @@
 import asyncio
 import sys
+import argparse
 from loguru import logger
 from core.orchestrator import CognitiveOrchestrator
+from core.memory import wipe_memory
 
 async def main():
+    parser = argparse.ArgumentParser(description="Animatronic Head Host")
+    parser.add_argument("--wipe", action="store_true", help="Wipe the AI's conversation memory before starting.")
+    args = parser.parse_args()
+
+    if args.wipe:
+        wipe_memory()
+
     logger.info("Initializing Animatronic Head Host Environment...")
     orchestrator = CognitiveOrchestrator()
     await orchestrator.start()
