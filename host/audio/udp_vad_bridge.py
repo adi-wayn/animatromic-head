@@ -119,7 +119,7 @@ class UDPVADBridge:
             self.agc_gain = (0.90 * self.agc_gain) + (0.10 * desired_gain)
             
         # Clamp gain to reasonable limits (1x to 30x)
-        self.agc_gain = max(1.0, min(self.agc_gain, 30.0))
+        self.agc_gain = max(1.0, min(self.agc_gain, 12.0))
         
         audio_agc = audio_filtered * self.agc_gain
         audio_agc = np.clip(audio_agc, -0.99, 0.99)
@@ -133,7 +133,7 @@ class UDPVADBridge:
         with torch.no_grad():
             speech_prob = self.model(tensor, self.RATE).item()
         
-        is_speech = speech_prob > 0.5
+        is_speech = speech_prob > 0.8
         
         self._debug_vad_counter += 1
         if self._debug_vad_counter >= 30:
@@ -145,7 +145,7 @@ class UDPVADBridge:
             self.ring_buffer.append((final_int16, is_speech))
             num_voiced = len([f for f, speech in self.ring_buffer if speech])
             
-            if num_voiced >= 8:
+            if num_voiced >= 10:
                 self.triggered = True
                 self.voiced_frames.extend([f for f, s in self.ring_buffer])
                 self.ring_buffer.clear()
