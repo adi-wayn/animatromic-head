@@ -84,7 +84,7 @@ class VADManager:
             # Use a slightly stricter confidence threshold when the robot is speaking
             # to prevent its own speaker echo from triggering an interrupt, but low enough
             # so the user doesn't have to shout.
-            threshold = 0.70 if is_speaking else 0.5
+            threshold = 0.85 if is_speaking else 0.5
             is_speech = speech_prob > threshold
             
         except Exception as e:
@@ -99,7 +99,7 @@ class VADManager:
             from audio.tts.dual_tts_manager import dual_tts_manager
             import time
             is_speaking = dual_tts_manager.is_speaking_active or (time.time() - dual_tts_manager.last_speaking_end_time < 0.5)
-            required_frames = 12 if is_speaking else 8
+            required_frames = 15 if is_speaking else 8
             
             # If a sufficient number of frames are voiced, trigger recording.
             if num_voiced >= required_frames:
