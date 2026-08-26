@@ -39,6 +39,8 @@ private:
     char incomingPacket[1024]; 
     QueueHandle_t messageQueue;
     bool _isConnected = false;
+    uint32_t lastBroadcastTime = 0;
+    bool _hostFound = false;
 };
 
 #endif

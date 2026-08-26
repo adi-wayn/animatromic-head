@@ -40,10 +40,18 @@ void NetworkManager::begin(uint16_t port) {
 }
 
 void NetworkManager::update() {
+    if (_isConnected && !_hostFound && millis() - lastBroadcastTime > 2000) {
+        udp.beginPacket(IPAddress(255, 255, 255, 255), 4213);
+        udp.print("ESP32_HEAD_HERE");
+        udp.endPacket();
+        lastBroadcastTime = millis();
+    }
+
     int packetSize = udp.parsePacket();
     if (packetSize) {
         // Dynamically latch onto the Host IP on EVERY valid control packet
         AudioManager::getInstance().setHostAddress(udp.remoteIP());
+        _hostFound = true; // Stop broadcasting once host talks to us!
         
         int len = udp.read(incomingPacket, sizeof(incomingPacket) - 1);
         if (len > 0) {
