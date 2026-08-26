@@ -167,20 +167,23 @@ This will create a `.venv/` virtual environment and install all packages listed 
 
 ---
 
-### Step 4: Verify the ESP32 is Reachable
+### Step 4: Connecting the Network (Anywhere!)
 
-Before starting the host, make sure the ESP32 and your computer are on the **same Wi-Fi network**.
+The ESP32 uses an **automatic UDP Broadcast Discovery Protocol** and `WiFiManager`. This means you never need to hardcode IP addresses, even if you travel between home, university, or mobile hotspots.
 
-```bash
-# Test mDNS resolution (from the host directory)
-ping animatronic-head.local
-```
+#### Standard Home Wi-Fi:
+As long as your computer and the ESP32 are on the same Wi-Fi network, the host Python script will automatically detect the ESP32 when you run it (using mDNS or UDP Broadcast on port 4213).
 
-If `ping` succeeds, the Host will automatically find the ESP32. If it doesn't resolve:
-```bash
-# Fallback: set the ESP32 IP manually (get it from the serial monitor output)
-export ESP32_IP=192.168.x.x
-```
+#### Public/University Wi-Fi (Bypassing Client Isolation):
+Large public Wi-Fi networks usually block devices from talking directly to each other (AP Isolation/Client Isolation). If you are on a university campus, the automatic discovery and UDP communication will fail.
+**The Fix (Mobile Hotspot):**
+1. Turn on the **Mobile Hotspot** on your phone.
+2. Connect your **Laptop** to your phone's hotspot.
+3. Keep your laptop's Wi-Fi menu open, and look for a new network called **`AnimatronicHead_AP`** (The ESP32 creates this if it can't find its old Wi-Fi). Connect to it.
+4. A setup page will pop up (or go to `192.168.4.1`). Select your phone's hotspot and enter the password.
+5. The ESP32 will instantly connect to your phone's hotspot alongside your laptop!
+
+Now, just run the host script! It will magically discover the ESP32's hidden IP address and lock onto it without any manual `export ESP32_IP` commands needed!
 
 ---
 
@@ -265,7 +268,7 @@ And on the ESP32 serial monitor:
 
 | Problem | Solution |
 |---------|----------|
-| `Could not resolve animatronic-head.local` | Set `export ESP32_IP=<ip>` from serial monitor |
+| `Could not resolve...` & UDP discovery times out | You have AP Isolation (public Wi-Fi). Connect both devices to a Mobile Hotspot instead! |
 | ESP32 creates `AnimatronicHead_AP` every boot | WiFiManager lost credentials; reconnect to your Wi-Fi |
 | AI ignores commands or repeats phrases | Run `uv run python main.py --wipe` to clear polluted memory |
 | `XTTS generation failed` | Check that `host/assets/scary_voice.wav` exists (reference audio for voice cloning) |
