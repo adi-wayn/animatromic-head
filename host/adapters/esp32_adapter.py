@@ -18,7 +18,7 @@ import socket as _socket
 ESP32_HOSTNAME = "animatronic-head.local"
 
 def _resolve_esp32_ip() -> str:
-    """Resolve the ESP32's mDNS hostname to an IP address, with env var override."""
+    """Resolve the ESP32's IP address dynamically."""
     import os
     env_ip = os.environ.get("ESP32_IP")
     if env_ip:
@@ -31,8 +31,30 @@ def _resolve_esp32_ip() -> str:
         logger.info(f"Resolved {ESP32_HOSTNAME} -> {ip}")
         return ip
     except _socket.gaierror:
-        logger.warning(f"Could not resolve {ESP32_HOSTNAME}. Using fallback simulator IP (127.0.0.1).")
-        return "127.0.0.1"  # Fallback to local 3D simulator
+        logger.warning(f"Could not resolve {ESP32_HOSTNAME} via mDNS. Trying UDP Broadcast Discovery...")
+        
+    # UDP Broadcast Fallback
+    try:
+        with _socket.socket(_socket.AF_INET, _socket.SOCK_DGRAM) as sock:
+            sock.setsockopt(_socket.SOL_SOCKET, _socket.SO_REUSEADDR, 1)
+            try:
+                # SO_REUSEPORT is required on macOS for broadcast binding
+                sock.setsockopt(_socket.SOL_SOCKET, _socket.SO_REUSEPORT, 1)
+            except AttributeError:
+                pass
+            sock.bind(("", 4213))
+            sock.settimeout(15.0)
+            logger.info("Listening on port 4213 for ESP32 broadcast...")
+            data, addr = sock.recvfrom(1024)
+            if b"ESP32_HEAD_HERE" in data:
+                ip = addr[0]
+                logger.info(f"Discovered ESP32 at {ip} via UDP Broadcast!")
+                return ip
+    except Exception as e:
+        logger.error(f"UDP Broadcast discovery failed: {e}")
+
+    logger.warning("All discovery methods failed. Using fallback simulator IP (127.0.0.1).")
+    return "127.0.0.1" 
 
 ESP32_IP = _resolve_esp32_ip()
 
