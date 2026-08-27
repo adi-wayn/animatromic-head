@@ -1,8 +1,17 @@
 #include "controllers/NetworkManager.h"
-#include <WiFiManager.h>
 #include <ESPmDNS.h>
 #include <esp_wifi.h>
+#include "esp_task_wdt.h"
 #include "controllers/AudioManager.h"
+
+// ── SoftAP Configuration ──
+static const char* AP_SSID     = "Edgar_AP";
+static const char* AP_PASSWORD = "edgarpassword123";
+
+// Static IP configuration for the Access Point
+static const IPAddress AP_LOCAL_IP(192, 168, 4, 1);
+static const IPAddress AP_GATEWAY(192, 168, 4, 1);
+static const IPAddress AP_SUBNET(255, 255, 255, 0);
 
 NetworkManager::NetworkManager() : messageQueue(nullptr) {}
 
@@ -10,23 +19,47 @@ void NetworkManager::begin(uint16_t port) {
     listenPort = port;
     messageQueue = xQueueCreate(5, sizeof(char[1024]));
 
-    WiFiManager wm;
-    Serial.println("[Network] Starting WiFiManager...");
-    
-    // Blocking autoConnect is fine here since Kinematics run on a separate core
-    if(!wm.autoConnect("AnimatronicHead_AP")) {
-        Serial.println("[Network] Failed to connect to Wi-Fi. Retrying...");
-        ESP.restart();
-    } else {
-        Serial.println("\n[Network] Connected to Wi-Fi!");
-        
-        // Disable WiFi power save to prevent UDP buffer overflow (Error 12 / ENOMEM)
-        esp_wifi_set_ps(WIFI_PS_NONE);
-        
-        Serial.print("[Network] IP Address: ");
-        Serial.println(WiFi.localIP());
-        _isConnected = true;
+    Serial.println("[Network] Configuring SoftAP mode...");
+
+    // Configure static IP before starting the AP
+    WiFi.softAPConfig(AP_LOCAL_IP, AP_GATEWAY, AP_SUBNET);
+
+    // Start the SoftAP with WPA2 authentication
+    bool apStarted = WiFi.softAP(AP_SSID, AP_PASSWORD);
+
+    // Wait for the AP interface to fully initialize.
+    // Feed the watchdog on every iteration to prevent Core 0 TWDT panic.
+    uint32_t apStartTime = millis();
+    while (!apStarted && (millis() - apStartTime < 10000)) {
+        esp_task_wdt_reset();
+        Serial.println("[Network] Waiting for SoftAP to start...");
+        vTaskDelay(pdMS_TO_TICKS(500));
+        apStarted = WiFi.softAP(AP_SSID, AP_PASSWORD);
     }
+
+    if (!apStarted) {
+        Serial.println("[Network] FATAL: SoftAP failed to start after 10s. Restarting...");
+        ESP.restart();
+    }
+
+    // Brief delay for DHCP server initialization; keep WDT happy
+    esp_task_wdt_reset();
+    vTaskDelay(pdMS_TO_TICKS(100));
+
+    // Disable WiFi power save to prevent UDP buffer overflow (Error 12 / ENOMEM)
+    esp_wifi_set_ps(WIFI_PS_NONE);
+
+    _isConnected = true;
+
+    // ── Print AP status to Serial ──
+    Serial.println("\n[Network] ═══════════════════════════════════════");
+    Serial.println("[Network]  SoftAP ACTIVE");
+    Serial.printf("[Network]  SSID     : %s\n", AP_SSID);
+    Serial.printf("[Network]  Password : %s\n", AP_PASSWORD);
+    Serial.print("[Network]  AP IP    : ");
+    Serial.println(WiFi.softAPIP());
+    Serial.printf("[Network]  Subnet   : %s\n", AP_SUBNET.toString().c_str());
+    Serial.println("[Network] ═══════════════════════════════════════\n");
 
     // Advertise via mDNS so the Host can find us by hostname
     if (MDNS.begin("animatronic-head")) {
@@ -41,7 +74,7 @@ void NetworkManager::begin(uint16_t port) {
 
 void NetworkManager::update() {
     if (_isConnected && !_hostFound && millis() - lastBroadcastTime > 2000) {
-        udp.beginPacket(IPAddress(255, 255, 255, 255), 4213);
+        udp.beginPacket(IPAddress(192, 168, 4, 255), 4213);
         udp.print("ESP32_HEAD_HERE");
         udp.endPacket();
         lastBroadcastTime = millis();

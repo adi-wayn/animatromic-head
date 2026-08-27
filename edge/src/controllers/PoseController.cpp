@@ -60,8 +60,8 @@ void PoseController::generateOrganicSaccade(uint32_t timeMs) {
     double noiseX = generateSimpleNoise(timeMs, 1.2f); 
     double noiseY = generateSimpleNoise(timeMs + 1000, 0.8f);
 
-    double xRange = (EYES_X.maxAngle - EYES_X.minAngle) * 0.08; // 8% physical range (small natural twitches)
-    double yRange = (EYES_Y.maxAngle - EYES_Y.minAngle) * 0.05; // 5% physical range (vertical is usually less)
+    double xRange = (EYES_X.maxAngle - EYES_X.minAngle) * 0.20; // 20% physical range for larger X twitches
+    double yRange = (EYES_Y.maxAngle - EYES_Y.minAngle) * 0.15; // 15% physical range for more natural up/down movement
 
     double targetX = EYES_X.centerAngle + (noiseX * xRange);
     double targetY = EYES_Y.centerAngle + (noiseY * yRange);

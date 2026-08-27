@@ -6,6 +6,7 @@
 #include "controllers/AnimatronicHead.h"
 #include <math.h>
 #include "controllers/AudioManager.h"
+#include "controllers/PoseController.h"
 #include "core/VoiceClips.h"
 
 
@@ -41,17 +42,13 @@ float RadarScanner::getDistanceCm() {
 
 double RadarScanner::calculateHeadPanAngle(float distanceCm, double radarAngle) {
     // Math logic: Radar 90 is forward. <90 is Right. >90 is Left.
-    // If Radar sees something at 80 (Right), the head (NECK_ONE) should ALSO turn Right (<90).
-    // We will use a slightly exaggerated direct mapping to make it feel natural,
-    // since the geometric offset was causing it to look left when the radar pointed right.
-    // We'll map the radar's angle directly with an offset to compensate for the physical 45-deg physical mount.
-    
-    // Instead of complex Cartesian trig (which caused the "head looks left when radar points right" feeling),
-    // let's do a direct angular mapping:
-    // Radar 90 (center) -> Head 90 (center)
-    // Radar 80 (right)  -> Head 80 (right)
-    // Radar 135 (left)  -> Head 135 (left)
-    return radarAngle;
+    if (radarAngle < 90.0) {
+        // Amplify movement to the right by 1.5x since it wasn't moving enough
+        return 90.0 - ((90.0 - radarAngle) * 1.5);
+    } else {
+        // Left movement is already good
+        return radarAngle;
+    }
 }
 
 void RadarScanner::update() {
@@ -108,12 +105,15 @@ void RadarScanner::update() {
                     }
                     AnimatronicHead::getInstance().updateActivityTimestamp();
 
-                    KinematicEngine::getInstance().triggerMove(
-                        NECK_ONE, 
-                        tentativeAngle, 
-                        1000, 
-                        EasingType::EASE_IN_OUT_CUBIC
-                    );
+                    if (currentAngle < 110.0) {
+                        Serial.println("[Radar] Target on RIGHT. Executing LOOK_RIGHT");
+                        PoseController::getInstance().executePose("LOOK_RIGHT");
+                    } else if (currentAngle > 140.0) {
+                        Serial.println("[Radar] Target on LEFT. Executing LOOK_LEFT");
+                        PoseController::getInstance().executePose("LOOK_LEFT");
+                    } else {
+                        Serial.println("[Radar] Target in MIDDLE. No movement needed.");
+                    }
 
                     // Pick a random phrase and play it!
                     SystemState oldState = AnimatronicHead::getInstance().getState();
