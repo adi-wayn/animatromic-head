@@ -124,15 +124,21 @@ SYSTEM BOOTING... (115200 Baud)
 
 [PowerManager] Dynamic CPU scaling enabled: 80–240 MHz. Light Sleep: ON.
 [Kinematics] 60 Hz hardware timer ISR armed.
-[Network] Starting WiFiManager...
+[Network] Configuring SoftAP mode...
 ```
 
-> **First-time Wi-Fi setup:** On the very first boot, the ESP32 will create a Wi-Fi access point called `AnimatronicHead_AP`. Connect to it from your phone or laptop, then select your home Wi-Fi network and enter the password. The ESP32 will remember this network for all future boots.
+> **Network Setup:** The ESP32 acts as its own Wi-Fi Access Point (AP) called `Edgar_AP`. Simply connect your laptop directly to this network using the password `edgarpassword123`. This ensures a dedicated, low-latency connection without needing an external router, phone hotspot, or internet access.
 
-After connecting, the serial monitor should show:
+After the AP starts, the serial monitor should show:
 ```
-[Network] Connected to Wi-Fi!
-[Network] IP Address: 192.168.x.x
+[Network] ═══════════════════════════════════════
+[Network]  SoftAP ACTIVE
+[Network]  SSID     : Edgar_AP
+[Network]  Password : edgarpassword123
+[Network]  AP IP    : 192.168.4.1
+[Network]  Subnet   : 255.255.255.0
+[Network] ═══════════════════════════════════════
+
 [Network] mDNS responder started: animatronic-head.local
 [Network] Listening on UDP port 4210
 Starting Staggered Boot Sequence...
@@ -169,21 +175,17 @@ This will create a `.venv/` virtual environment and install all packages listed 
 
 ### Step 4: Connecting the Network (Anywhere!)
 
-The ESP32 uses an **automatic UDP Broadcast Discovery Protocol** and `WiFiManager`. This means you never need to hardcode IP addresses, even if you travel between home, university, or mobile hotspots.
+The system is designed for maximum portability and runs without requiring an internet connection or external routers. The ESP32 is configured to act as a **Wi-Fi Access Point (SoftAP)** instead of relying on a phone hotspot or local network.
 
-#### Standard Home Wi-Fi:
-As long as your computer and the ESP32 are on the same Wi-Fi network, the host Python script will automatically detect the ESP32 when you run it (using mDNS or UDP Broadcast on port 4213).
+This setup eliminates the constraint of needing a cellular connection on your phone and bypasses public Wi-Fi client isolation issues entirely. You can connect and run the system from anywhere—whether in a university lab, at a park, or on an airplane.
 
-#### Public/University Wi-Fi (Bypassing Client Isolation):
-Large public Wi-Fi networks usually block devices from talking directly to each other (AP Isolation/Client Isolation). If you are on a university campus, the automatic discovery and UDP communication will fail.
-**The Fix (Mobile Hotspot):**
-1. Turn on the **Mobile Hotspot** on your phone.
-2. Connect your **Laptop** to your phone's hotspot.
-3. Keep your laptop's Wi-Fi menu open, and look for a new network called **`AnimatronicHead_AP`** (The ESP32 creates this if it can't find its old Wi-Fi). Connect to it.
-4. A setup page will pop up (or go to `192.168.4.1`). Select your phone's hotspot and enter the password.
-5. The ESP32 will instantly connect to your phone's hotspot alongside your laptop!
+**How to Connect:**
+1. Open your laptop's Wi-Fi menu.
+2. Look for the network called **`Edgar_AP`**.
+3. Connect using the password **`edgarpassword123`**.
+4. That's it! Your laptop is now directly communicating with the ESP32 over a dedicated, low-latency UDP link.
 
-Now, just run the host script! It will magically discover the ESP32's hidden IP address and lock onto it without any manual `export ESP32_IP` commands needed!
+Now, just run the host script! It will seamlessly communicate with the ESP32 without any manual `export ESP32_IP` commands needed, as the ESP32 uses a static IP (`192.168.4.1`) and mDNS.
 
 ---
 
@@ -268,8 +270,7 @@ And on the ESP32 serial monitor:
 
 | Problem | Solution |
 |---------|----------|
-| `Could not resolve...` & UDP discovery times out | You have AP Isolation (public Wi-Fi). Connect both devices to a Mobile Hotspot instead! |
-| ESP32 creates `AnimatronicHead_AP` every boot | WiFiManager lost credentials; reconnect to your Wi-Fi |
+| `Could not resolve...` & UDP discovery times out | Ensure your laptop is connected directly to the `Edgar_AP` Wi-Fi network. |
 | AI ignores commands or repeats phrases | Run `uv run python main.py --wipe` to clear polluted memory |
 | `XTTS generation failed` | Check that `host/assets/scary_voice.wav` exists (reference audio for voice cloning) |
 | `Ollama CLI not found` | Run `brew install ollama` and ensure `ollama serve` is running |
