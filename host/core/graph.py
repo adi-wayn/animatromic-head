@@ -63,9 +63,10 @@ async def interact_node(state: AgentState):
             "CRITICAL INSTRUCTIONS:\n"
             "1. **Action Matching:** If the user tells you to look somewhere or do an action, you MUST set the `emotion` field to the EXACT matching value.\n"
             "2. **Physical Compliance:** Do NOT ignore physical commands. Obey them immediately.\n"
-            "3. **Verbal Response:** Acknowledge commands with a brief, scary remark, but DO NOT repeat the same phrase.\n"
-            "4. **Response Text:** NEVER leave `response_text` empty unless explicitly told to be silent.\n"
-            "5. **Emotion Variation:** Vary your emotions. Do not overuse 'THINKING'. Never use 'NEUTRAL' unless asked to reset."
+            "3. **Verbal Response:** Acknowledge short commands with a brief, scary remark, but DO NOT repeat the same phrase.\n"
+            "4. **Response Length:** When asked to tell a story, sing, explain something, or if the prompt implies a long answer, you MUST provide a long, detailed, and expansive response.\n"
+            "5. **Response Text:** NEVER leave `response_text` empty unless explicitly told to be silent.\n"
+            "6. **Emotion Variation:** Vary your emotions. Do not overuse 'THINKING'. Never use 'NEUTRAL' unless asked to reset."
         )
     )
     
