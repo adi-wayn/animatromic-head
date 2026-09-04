@@ -14,11 +14,17 @@
   <img src="docs/photos/IMG_7335.jpeg" alt="EDGAR — The Animatronic Head" width="500">
 </p>
 
+> [!TIP]
+> ### 📽️ **Interactive Slide Deck Available!**
+> Explore the full technical presentation, interactive schematics, component deep-dives, development story, and media gallery directly in your browser:
+> 👉 **[Launch presentation.html](presentation.html)** *(Fully self-contained offline deck — simply open in any browser)*
+
 ---
 
 ## 📋 Table of Contents
 
 - [Features](#-features)
+- [Interactive Presentation](#-interactive-presentation)
 - [System Architecture](#-system-architecture)
 - [Hardware Requirements](#-hardware-requirements)
 - [Network Topology](#-network-topology)
@@ -59,6 +65,30 @@
 | 🎮 **Simulator** | MuJoCo-based 3D skull simulator for development without hardware |
 | 📊 **Radar** | HC-SR05 ultrasonic proximity sensor for spatial awareness |
 | 💾 **Memory** | Persistent conversation memory with SQLite checkpointing |
+
+---
+
+## 📽️ Interactive Presentation
+
+The repository includes a comprehensive, standalone interactive HTML presentation deck: **[`presentation.html`](presentation.html)**.
+
+Built with modern CSS and Swiper.js, it provides an executive and technical deep-dive into EDGAR with full offline support.
+
+### 🌟 What’s inside the deck:
+- 🏛️ **System Architecture & Dual-Tier Design**: Edge (FreeRTOS) vs. Host (LangGraph) isolation
+- 🔌 **Schematics & Circuit Diagram**: Full hardware wiring, power distribution, and I2S pinouts
+- 🧠 **Cognitive Stack**: Real-time VAD speech segmentation, local LLM inference, and voice cloning
+- 🦾 **Kinematic Subsystems**: 60 Hz hardware ISR timer, easing curves, and servo safe zones
+- 📸 **Interactive Development Gallery**: 15 high-resolution assembly photos and live operation video clips
+- 💡 **AI-Assisted Engineering Journey**: Retrospective on modern agentic workflows, PlatformIO development, and lessons learned
+
+### 🚀 How to launch:
+- **Direct browser opening**: Simply double-click [`presentation.html`](presentation.html) on macOS, Windows, or Linux.
+- **Local HTTP server**:
+  ```bash
+  python3 -m http.server 8000
+  # Then open: http://localhost:8000/presentation.html
+  ```
 
 ---
 
@@ -462,6 +492,7 @@ find edge/src edge/include -name "*.cpp" -o -name "*.h" | xargs clang-format -i
 
 | Document | Description |
 |----------|-------------|
+| [**`presentation.html`**](presentation.html) | **Interactive Technical Slide Deck & Media Showcase** (Self-contained offline HTML) |
 | [`AnimatronicHead_SRS.md`](docs/requirements/AnimatronicHead_SRS.md) | Software Requirements Specification — the "What" |
 | [`AnimatronicHead_SDD.md`](docs/design/AnimatronicHead_SDD.md) | Software Design Document — the "How" |
 | [`Implementation_Roadmap.md`](docs/Implementation_Roadmap.md) | Lifecycle tracker with all completed phases |
