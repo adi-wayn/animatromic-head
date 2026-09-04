@@ -359,11 +359,11 @@ The simulator renders the skull model with all 9 servo channels mapped to the 3D
 animatromic head/
 ├── README.md                          # This file
 ├── LICENSE                            # MIT License
-├── .clang-format                      # C++ code style (Google-based)
 ├── .gitignore                         # Comprehensive ignore rules
 ├── presentation.html                  # Interactive project presentation
 │
 ├── edge/                              # 🔧 ESP32 Firmware (C++ / FreeRTOS)
+│   ├── .clang-format                  # C++ code style (Google-based)
 │   ├── platformio.ini                 # Build configuration
 │   ├── src/
 │   │   ├── main.cpp                   # Entry point & FreeRTOS task setup
