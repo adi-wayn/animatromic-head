@@ -1,19 +1,26 @@
-# PlatformIO
+# ── PlatformIO ──
 .pio/
 .vscode/
 
-# Python Host
+# ── Python Host ──
 .venv/
 __pycache__/
 *.pyc
 .env
 host/models/
+host/bin/
+host/logs/
 
-# Database
+# ── Database ──
 data/
 
-# MacOS
+# ── macOS ──
 .DS_Store
 
-# Agent/IDE Logs
+# ── IDE / Cache ──
 .gemini/
+.remember/
+.pytest_cache/
+
+# ── ESP32 Course Material (not part of the project) ──
+ESP32 Course Material/
