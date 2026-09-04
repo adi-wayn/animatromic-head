@@ -1,13 +1,19 @@
-#include "core/RadarScanner.h"
+/**
+ * @file SystemTasks.cpp
+ * @brief Implementation of SystemTasks.cpp.
+ */
 #include "core/SystemTasks.h"
+
 #include <Arduino.h>
-#include "controllers/AnimatronicHead.h"
-#include "controllers/NetworkManager.h"
-#include "controllers/AudioManager.h"
-#include "hardware/PCA9685_Driver.h"
-#include "core/PowerManager.h"
 #include <math.h>
+
+#include "controllers/AnimatronicHead.h"
+#include "controllers/AudioManager.h"
+#include "controllers/NetworkManager.h"
+#include "core/PowerManager.h"
+#include "core/RadarScanner.h"
 #include "esp_task_wdt.h"
+#include "hardware/PCA9685_Driver.h"
 
 // ============================================================
 //  Hardware Timer ISR — 60 Hz Kinematics Clock
@@ -54,8 +60,8 @@ void IRAM_ATTR onKinematicsTimer() {
 //  CPU is in FreeRTOS tickless idle (Light Sleep eligible) while
 //  blocked on xSemaphoreTake between timer firings.
 // ============================================================
-void kinematicsTask(void *pvParameters) {
-    (void) pvParameters;
+void kinematicsTask(void* pvParameters) {
+    (void)pvParameters;
 
     // Create binary semaphore that ISR will signal
     kinematicsTriggerSem = xSemaphoreCreateBinary();
@@ -69,7 +75,7 @@ void kinematicsTask(void *pvParameters) {
     // 60 Hz → period = 16666 µs
     kinematicsTimer = timerBegin(0, 80, true);
     timerAttachInterrupt(kinematicsTimer, &onKinematicsTimer, true);
-    timerAlarmWrite(kinematicsTimer, 16666, true); // auto-reload
+    timerAlarmWrite(kinematicsTimer, 16666, true);  // auto-reload
     timerAlarmEnable(kinematicsTimer);
 
     Serial.println("[Kinematics] 60 Hz hardware timer ISR armed.");
@@ -86,7 +92,8 @@ void kinematicsTask(void *pvParameters) {
         xSemaphoreTake(kinematicsTriggerSem, pdMS_TO_TICKS(100));
 
         // Skip kinematic update if system is in low-power idle
-        if (AnimatronicHead::getInstance().isInLowPowerIdle()) continue;
+        if (AnimatronicHead::getInstance().isInLowPowerIdle())
+            continue;
 
         if (AnimatronicHead::getInstance().isBooted()) {
             // Drive lip sync from audio amplitude during speech
@@ -102,35 +109,38 @@ void kinematicsTask(void *pvParameters) {
 // ============================================================
 //  Boot Task (Core 1, Priority 2) — runs once then deletes itself
 // ============================================================
-void staggeredBootTask(void *pvParameters) {
-    (void) pvParameters;
+void staggeredBootTask(void* pvParameters) {
+    (void)pvParameters;
     Serial.println("[Boot] Starting Staggered Boot Sequence...");
 
     AnimatronicHead::getInstance().begin();
 
-    ServoConfig servos[] = {NECK_ONE, NECK_Y, NECK_ROLL, EYES_X, EYES_Y, JAW_UD, JAW_LR, EYELID_LEFT, EYELID_RIGHT};
+    ServoConfig servos[] = {NECK_ONE, NECK_Y, NECK_ROLL,   EYES_X,      EYES_Y,
+                            JAW_UD,   JAW_LR, EYELID_LEFT, EYELID_RIGHT};
     int numServos = sizeof(servos) / sizeof(ServoConfig);
 
     for (int i = 0; i < numServos; i++) {
         Serial.printf("[Boot] Initializing Servo Channel %d...\n", servos[i].channel);
         double initAngle = servos[i].centerAngle;
-        if (servos[i].channel == EYELID_LEFT.channel)  initAngle = EYELID_LEFT.minAngle;
-        if (servos[i].channel == EYELID_RIGHT.channel) initAngle = EYELID_RIGHT.minAngle;
+        if (servos[i].channel == EYELID_LEFT.channel)
+            initAngle = EYELID_LEFT.minAngle;
+        if (servos[i].channel == EYELID_RIGHT.channel)
+            initAngle = EYELID_RIGHT.minAngle;
         safeSetServoAngle(servos[i].channel, initAngle, servos[i].minAngle, servos[i].maxAngle);
-        vTaskDelay(pdMS_TO_TICKS(500)); // 500ms stagger per servo
+        vTaskDelay(pdMS_TO_TICKS(500));  // 500ms stagger per servo
     }
 
     Serial.println("[Boot] Staggered Boot Complete. System Ready.");
     AnimatronicHead::getInstance().setBooted(true);
-    AnimatronicHead::getInstance().updateActivityTimestamp(); // Mark boot as activity
+    AnimatronicHead::getInstance().updateActivityTimestamp();  // Mark boot as activity
     vTaskDelete(NULL);
 }
 
 // ============================================================
 //  Task 2: Network Transport (Core 0, Priority 20)
 // ============================================================
-void networkTask(void *pvParameters) {
-    (void) pvParameters;
+void networkTask(void* pvParameters) {
+    (void)pvParameters;
     NetworkManager& network = NetworkManager::getInstance();
     network.begin();
     ESP_ERROR_CHECK(esp_task_wdt_add(NULL));
@@ -142,13 +152,12 @@ void networkTask(void *pvParameters) {
     }
 }
 
-
 // ============================================================
 //  Task 4: Idle Behaviors (Core 1, Priority 3)
 //  Suspended entirely during LOW_POWER_IDLE.
 // ============================================================
-void idleBehaviorTask(void *pvParameters) {
-    (void) pvParameters;
+void idleBehaviorTask(void* pvParameters) {
+    (void)pvParameters;
     while (true) {
         AnimatronicHead& head = AnimatronicHead::getInstance();
 
@@ -158,13 +167,14 @@ void idleBehaviorTask(void *pvParameters) {
             continue;
         }
 
-        if (head.isBooted() && (head.getState() == SystemState::IDLE_LISTENING || head.getState() == SystemState::SPEAKING_SYNCING)) {
+        if (head.isBooted() && (head.getState() == SystemState::IDLE_LISTENING ||
+                                head.getState() == SystemState::SPEAKING_SYNCING)) {
             head.triggerSaccade(millis());
 
             // 15% chance to blink
             if (random(0, 100) < 15) {
                 head.executePose("BLINK");
-                vTaskDelay(pdMS_TO_TICKS(150)); // Wait for eyelids to close
+                vTaskDelay(pdMS_TO_TICKS(150));  // Wait for eyelids to close
                 head.executePose("UNBLINK");
             }
 
@@ -193,8 +203,8 @@ void idleBehaviorTask(void *pvParameters) {
 //    - If RMS is consistently below threshold: skip network write
 //      (silence suppression — saves bandwidth when room is quiet)
 // ============================================================
-void audioUplinkTask(void *pvParameters) {
-    (void) pvParameters;
+void audioUplinkTask(void* pvParameters) {
+    (void)pvParameters;
 
     // Block until network is fully initialized to prevent LwIP socket crashes
     while (!NetworkManager::getInstance().isConnected()) {
@@ -223,7 +233,7 @@ void audioUplinkTask(void *pvParameters) {
             // readMicChunk now returns purely 16-bit PCM data.
             int16_t* cleanSamples16 = (int16_t*)pcmBuffer;
             int numFrames = bytesRead / 2;
-            
+
             float sumSq = 0.0f;
             for (int i = 0; i < numFrames; i++) {
                 float s = (float)cleanSamples16[i];
@@ -243,7 +253,8 @@ void audioUplinkTask(void *pvParameters) {
                     SemaphoreHandle_t sem = PowerManager::getInstance().micWakeupSem;
                     if (sem != nullptr) {
                         xSemaphoreGive(sem);
-                        Serial.println("[AudioUplink] Audio interrupt: waking from LOW_POWER_IDLE.");
+                        Serial.println(
+                            "[AudioUplink] Audio interrupt: waking from LOW_POWER_IDLE.");
                     }
                 }
                 AnimatronicHead::getInstance().updateActivityTimestamp();
@@ -253,18 +264,22 @@ void audioUplinkTask(void *pvParameters) {
             if (!AnimatronicHead::getInstance().isInLowPowerIdle()) {
                 if (soundDetected) {
                     if (!isSendingAudio) {
-                        Serial.println("[AudioUplink] START: Capturing audio from INMP441 and sending to Host...");
+                        Serial.println(
+                            "[AudioUplink] START: Capturing audio from INMP441 and sending to "
+                            "Host...");
                         isSendingAudio = true;
                     }
                     audio.sendToHost((uint8_t*)cleanSamples16, numFrames * 2);
                     lastSendTime = millis();
 
                     if (millis() - lastActiveLogTime > 2000) {
-                        Serial.println("[AudioUplink] ACTIVE: Currently streaming mic data over network.");
+                        Serial.println(
+                            "[AudioUplink] ACTIVE: Currently streaming mic data over network.");
                         lastActiveLogTime = millis();
                     }
                 } else if (isSendingAudio && (millis() - lastSendTime > 1000)) {
-                    Serial.println("[AudioUplink] END: Silence detected. Stopped sending mic data.");
+                    Serial.println(
+                        "[AudioUplink] END: Silence detected. Stopped sending mic data.");
                     isSendingAudio = false;
                 }
             }
@@ -277,8 +292,8 @@ void audioUplinkTask(void *pvParameters) {
 //  Amplitude decay for lip sync preserved. Activity timestamp
 //  updated on every received audio packet.
 // ============================================================
-void audioDownlinkTask(void *pvParameters) {
-    (void) pvParameters;
+void audioDownlinkTask(void* pvParameters) {
+    (void)pvParameters;
 
     // Block until network is fully initialized to prevent LwIP socket crashes
     while (!NetworkManager::getInstance().isConnected()) {
@@ -305,14 +320,17 @@ void audioDownlinkTask(void *pvParameters) {
         int bytesReceived = audio.receiveFromHost(pcmBuffer, AUDIO_CHUNK_SIZE_BYTES);
         if (bytesReceived > 0) {
             if (!isReceivingAudio) {
-                Serial.println("[AudioDownlink] START: Receiving TTS audio from Host. Sending to MAX98357A...");
+                Serial.println(
+                    "[AudioDownlink] START: Receiving TTS audio from Host. Sending to "
+                    "MAX98357A...");
                 isReceivingAudio = true;
                 RadarScanner::getInstance().setPaused(true);
             }
             lastReceiveTime = millis();
 
             if (millis() - lastActiveLogTime > 2000) {
-                Serial.println("[AudioDownlink] ACTIVE: Currently playing TTS audio through MAX98357A.");
+                Serial.println(
+                    "[AudioDownlink] ACTIVE: Currently playing TTS audio through MAX98357A.");
                 lastActiveLogTime = millis();
             }
 
@@ -322,8 +340,8 @@ void audioDownlinkTask(void *pvParameters) {
 
             // Calculate RMS for Lip-Sync
             int16_t* samples = (int16_t*)pcmBuffer;
-            int numSamples   = bytesReceived / 2;
-            
+            int numSamples = bytesReceived / 2;
+
             // Apply Low-Pass Filter to remove high-frequency grain and noise
             static float filterState = 0.0f;
             const float alpha = 0.6f;
@@ -338,27 +356,29 @@ void audioDownlinkTask(void *pvParameters) {
                 sumSquares += sample * sample;
             }
             float rms = (numSamples > 0) ? sqrtf(sumSquares / numSamples) : 0.0f;
-            float raw_intensity = (rms / RMS_SCALER) * 1.7f; // 2.0f * 0.85 (reduced by 15%) 
-            
+            float raw_intensity = (rms / RMS_SCALER) * 1.7f;  // 2.0f * 0.85 (reduced by 15%)
+
             // Low-pass filter (EMA) to smooth the jaw movement and prevent rapid jitter/vibration
             // This gives the servo torque time to physically catch up with the audio peaks.
             float currentAmp = audio.getAmplitude();
-            // A 50/50 blend gives the jaw enough torque to smooth out the audio spikes, 
+            // A 50/50 blend gives the jaw enough torque to smooth out the audio spikes,
             // without suppressing the total amplitude like a 70/30 split did.
             float smoothedIntensity = (currentAmp * 0.50f) + (raw_intensity * 0.50f);
-            
+
             audio.setAmplitude(smoothedIntensity);
 
             audio.writeToSpeaker(pcmBuffer, bytesReceived);
         } else {
             if (isReceivingAudio && (millis() - lastReceiveTime > 500)) {
-                Serial.println("[AudioDownlink] END: Audio stream finished. Stopped sending to MAX98357A.");
+                Serial.println(
+                    "[AudioDownlink] END: Audio stream finished. Stopped sending to MAX98357A.");
                 isReceivingAudio = false;
                 RadarScanner::getInstance().setPaused(false);
             }
 
             // Only decay the amplitude if we haven't received a packet in 50ms.
-            // This prevents the jaw from slamming shut between normal UDP packets (which arrive every ~32ms).
+            // This prevents the jaw from slamming shut between normal UDP packets (which arrive
+            // every ~32ms).
             if (millis() - lastReceiveTime > 50) {
                 float currentAmp = audio.getAmplitude();
                 if (currentAmp > 0.01f) {
@@ -376,8 +396,8 @@ void audioDownlinkTask(void *pvParameters) {
 //  Task 7: Telemetry (Core 1, Priority 5)
 //  Suspended in low-power idle to save CPU and network.
 // ============================================================
-void telemetryTask(void *pvParameters) {
-    (void) pvParameters;
+void telemetryTask(void* pvParameters) {
+    (void)pvParameters;
     WiFiUDP telemetrySocket;
 
     while (true) {
@@ -400,7 +420,7 @@ void telemetryTask(void *pvParameters) {
             telemetrySocket.print(telemetry);
             telemetrySocket.endPacket();
         }
-        vTaskDelay(pdMS_TO_TICKS(100)); // 10 Hz
+        vTaskDelay(pdMS_TO_TICKS(100));  // 10 Hz
     }
 }
 
@@ -411,11 +431,11 @@ void telemetryTask(void *pvParameters) {
 //  Also handles wakeup from LOW_POWER_IDLE when micWakeupSem
 //  is signaled by the Audio ISR path above.
 // ============================================================
-void powerWatchdogTask(void *pvParameters) {
-    (void) pvParameters;
+void powerWatchdogTask(void* pvParameters) {
+    (void)pvParameters;
 
     PowerManager& pm = PowerManager::getInstance();
-    pm.begin(); // Initialize ESP-IDF PM driver + create micWakeupSem
+    pm.begin();  // Initialize ESP-IDF PM driver + create micWakeupSem
 
     while (true) {
         if (pm.isLowPower()) {
@@ -435,12 +455,13 @@ void powerWatchdogTask(void *pvParameters) {
 
         // ── ACTIVE MODE: check inactivity timer ──
         if (AnimatronicHead::getInstance().isBooted()) {
-            uint32_t now        = millis();
-            uint32_t lastActMs  = AnimatronicHead::getInstance().getLastActivityMs();
-            uint32_t idleTime   = now - lastActMs;
+            uint32_t now = millis();
+            uint32_t lastActMs = AnimatronicHead::getInstance().getLastActivityMs();
+            uint32_t idleTime = now - lastActMs;
 
             if (idleTime >= INACTIVITY_TIMEOUT_MS) {
-                Serial.printf("[PowerWDT] No activity for %lu ms. Entering LOW_POWER_IDLE.\n", idleTime);
+                Serial.printf("[PowerWDT] No activity for %lu ms. Entering LOW_POWER_IDLE.\n",
+                              idleTime);
                 pm.enterLowPowerIdle();
             }
         }
@@ -456,8 +477,8 @@ void powerWatchdogTask(void *pvParameters) {
 //  detect approaching targets and wake up the head.
 // ============================================================
 
-void radarScannerTask(void *pvParameters) {
-    (void) pvParameters;
+void radarScannerTask(void* pvParameters) {
+    (void)pvParameters;
 
     RadarScanner& radar = RadarScanner::getInstance();
     radar.begin();

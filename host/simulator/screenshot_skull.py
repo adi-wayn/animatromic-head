@@ -1,7 +1,9 @@
-import mujoco
-import numpy as np
-from PIL import Image
+"""Module for screenshot_skull.py."""
+
 import os
+
+import mujoco
+from PIL import Image
 
 xml_path = os.path.join(os.path.dirname(__file__), "skull.xml")
 model = mujoco.MjModel.from_xml_path(xml_path)

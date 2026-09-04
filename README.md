@@ -1,122 +1,202 @@
-# LLM-Powered Animatronic Head Platform
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![ESP32](https://img.shields.io/badge/MCU-ESP32-orange?logo=espressif)](https://www.espressif.com/)
+[![Python 3.11](https://img.shields.io/badge/Python-3.11-blue?logo=python)](https://www.python.org/)
+[![Ollama](https://img.shields.io/badge/LLM-Ollama_Llama_3.2-green?logo=meta)](https://ollama.com/)
+[![FreeRTOS](https://img.shields.io/badge/RTOS-FreeRTOS-red)](https://www.freertos.org/)
+[![Ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://docs.astral.sh/ruff/)
+[![PlatformIO](https://img.shields.io/badge/Build-PlatformIO-orange?logo=platformio)](https://platformio.org/)
 
-An advanced, open-source physical robotic avatar that leverages local Large Language Models to engage in intelligent conversation, derive context-aware emotions, and express those emotions through lifelike physical servo movements.
+# 🎃 EDGAR — LLM-Powered Animatronic Head
 
-## 🏗️ System Architecture
+> **E**xpressive **D**ynamic **G**enerative **A**nimation **R**obot — An open-source physical robotic avatar that leverages local Large Language Models to hold intelligent conversations, derive context-aware emotions, and express those emotions through lifelike physical servo movements.
 
-This project utilizes a **Dual-Tier Architecture** to separate physical real-time constraints from heavy AI computation.
-
-1. **The Edge (ESP32):** 
-   - Written in C++ using FreeRTOS.
-   - Manages deterministic kinematics (9 servos via PCA9685) and I2S audio routing.
-   - Streams raw audio back and forth via ultra-low-latency UDP.
-
-2. **The Host (Python):** 
-   - An asynchronous Python environment managed by `uv`.
-   - Runs the heavy AI pipeline: Silero VAD -> Whisper STT -> Ollama LLM -> XTTS v2 TTS.
-   - Translates spoken words into text, infers emotional intent, and generates voice and JSON control commands for the Edge.
-
-## 🛠️ Hardware Requirements
-- **Microcontroller:** ESP32 Development Board
-- **Servo Controller:** PCA9685 16-Channel 12-bit PWM Driver
-- **Audio Input:** INMP441 I2S Omnidirectional Microphone
-- **Audio Output:** MAX98357A I2S Class-D Amplifier + 4Ω 4311 Mid-Range Speaker
-- **Actuators:** 9 Servos total (2x MG945, 1x MG995, 1x HX5010, 5x SG90)
-- **Power:** 5V 10A AC/DC Power Supply
-
-## 🔌 Network Topology (UDP over Wi-Fi)
-
-| Port | Direction | Purpose |
-|------|-----------|---------|
-| 4210 | Host → Edge | Control commands (JSON: intents, phase updates, emergency stop) |
-| 4211 | Edge → Host | Audio uplink (raw PCM from INMP441 microphone) |
-| 4212 | Host → Edge | Audio downlink (TTS PCM to MAX98357A speaker) |
-| 4213 | Edge → Host | Telemetry (heap size, power state) |
-
-The ESP32 advertises itself via mDNS as `animatronic-head.local`. The Host resolves this hostname automatically — **no hardcoded IPs are needed**.
+<p align="center">
+  <img src="docs/photos/IMG_7335.jpeg" alt="EDGAR — The Animatronic Head" width="500">
+</p>
 
 ---
 
-## 🚀 Running the System End-to-End
+## 📋 Table of Contents
 
-Follow these steps in order to go from a cold start to a fully running conversational animatronic head.
+- [Features](#-features)
+- [System Architecture](#-system-architecture)
+- [Hardware Requirements](#-hardware-requirements)
+- [Network Topology](#-network-topology)
+- [Quick Start](#-quick-start)
+  - [Prerequisites](#prerequisites-install-once)
+  - [Step 1: Start Ollama](#step-1-start-ollama-and-pull-the-llm-model)
+  - [Step 2: Flash ESP32](#step-2-flash-the-esp32-firmware)
+  - [Step 3: Install Host Dependencies](#step-3-install-host-python-dependencies)
+  - [Step 4: Connect Wi-Fi](#step-4-connect-to-the-network)
+  - [Step 5: Run the Host](#step-5-start-the-host-ai-pipeline)
+  - [Step 6: Talk!](#step-6-talk-to-edgar)
+- [AI Pipeline](#-ai-pipeline)
+- [Protocol (Single Source of Truth)](#-protocol--single-source-of-truth)
+- [3D Simulator](#-3d-simulator)
+- [Project Structure](#-project-structure)
+- [Code Quality](#-code-quality)
+- [Troubleshooting](#-troubleshooting)
+- [Documentation](#-documentation)
+- [Gallery](#-gallery)
+- [Stopping the System](#-stopping-the-system)
+- [Contributing](#-contributing)
+- [License](#-license)
+- [Acknowledgments](#-acknowledgments)
+
+---
+
+## ✨ Features
+
+| Category | Feature |
+|----------|---------|
+| 🧠 **AI** | Fully local AI pipeline — no cloud APIs, no internet required |
+| 🗣️ **Speech** | Real-time STT (Whisper) + Voice cloning TTS (Kokoro / XTTS v2) |
+| 🎭 **Emotion** | LLM-driven emotion inference with 7 physical expression poses |
+| 🦾 **Kinematics** | 9-servo expression system at 60 Hz via PCA9685 PWM driver |
+| 📡 **Networking** | Dedicated Wi-Fi Access Point (SoftAP) — works anywhere, no router needed |
+| ⚡ **Real-time** | FreeRTOS dual-core task architecture with hardware timer ISR |
+| 🛡️ **Safety** | Staggered boot sequence, brown-out protection, power watchdog |
+| 🎮 **Simulator** | MuJoCo-based 3D skull simulator for development without hardware |
+| 📊 **Radar** | HC-SR05 ultrasonic proximity sensor for spatial awareness |
+| 💾 **Memory** | Persistent conversation memory with SQLite checkpointing |
+
+---
+
+## 🏗️ System Architecture
+
+This project uses a **Dual-Tier Architecture** separating physical real-time constraints from heavy AI computation:
+
+```mermaid
+graph LR
+    subgraph Edge["🔧 Edge (ESP32 — C++ / FreeRTOS)"]
+        MIC[🎤 INMP441<br>I2S Mic]
+        SPK[🔊 MAX98357A<br>I2S Speaker]
+        PCA[PCA9685<br>PWM Driver]
+        SERVO[9 Servos]
+        RADAR[HC-SR05<br>Ultrasonic]
+        PCA --> SERVO
+    end
+
+    subgraph Host["🧠 Host (Python — Async Pipeline)"]
+        VAD[Silero VAD]
+        STT[Whisper STT]
+        LLM[Ollama<br>Llama 3.2]
+        TTS[Kokoro /<br>XTTS v2]
+        GRAPH[LangGraph<br>State Machine]
+        VAD --> STT --> GRAPH --> LLM --> TTS
+    end
+
+    MIC -- "UDP 4211<br>PCM Audio" --> VAD
+    TTS -- "UDP 4212<br>PCM Audio" --> SPK
+    GRAPH -- "UDP 4210<br>JSON Commands" --> PCA
+    RADAR -- "UDP 4213<br>Telemetry" --> Host
+```
+
+### The Edge (ESP32)
+- Written in **C++** using **FreeRTOS** with dual-core task pinning
+- Manages deterministic kinematics (9 servos via PCA9685) and I2S audio routing
+- Streams raw PCM audio via ultra-low-latency UDP
+- Runs a 60 Hz hardware timer ISR for smooth servo interpolation
+
+### The Host (Python)
+- An asynchronous pipeline managed by [`uv`](https://docs.astral.sh/uv/)
+- Runs the full AI stack: **Silero VAD → Whisper STT → Ollama LLM → Kokoro/XTTS v2 TTS**
+- Uses **LangGraph** for cognitive state management (LISTENING → THINKING → SPEAKING)
+- Translates spoken words into text, infers emotional intent, and generates voice + JSON control commands
+
+---
+
+## 🛠️ Hardware Requirements
+
+| Component | Model | Purpose |
+|-----------|-------|---------|
+| **Microcontroller** | ESP32 Development Board | Dual-core Xtensa @ 240 MHz |
+| **Servo Controller** | PCA9685 16-Channel 12-bit PWM | I²C servo control at 60 Hz |
+| **Audio Input** | INMP441 I2S MEMS Microphone | Omnidirectional voice capture |
+| **Audio Output** | MAX98357A I2S Class-D Amplifier | 3W mono speaker driver |
+| **Speaker** | 4Ω 4311 Mid-Range Speaker | Voice output |
+| **Actuators** | 2× MG945 + 1× MG995 + 1× HX5010 + 5× SG90 | 9 servo expression system |
+| **Power Supply** | 5V 10A AC/DC | Powers all servos + PCA9685 |
+| **Proximity** | HC-SR05 Ultrasonic Sensor | Spatial awareness radar |
+| **Skull** | 3D-printed ([Thingiverse #2456550](https://www.thingiverse.com/thing:2456550)) | Physical skull housing |
+
+---
+
+## 🔌 Network Topology
+
+The ESP32 creates its own Wi-Fi Access Point — no external router, hotspot, or internet needed:
+
+| Port | Direction | Protocol | Purpose |
+|------|-----------|----------|---------|
+| `4210` | Host → Edge | JSON/UDP | Control commands (intents, phase updates, emergency stop) |
+| `4211` | Edge → Host | PCM/UDP | Audio uplink (raw 16-bit PCM from INMP441 microphone) |
+| `4212` | Host → Edge | PCM/UDP | Audio downlink (TTS PCM to MAX98357A speaker) |
+| `4213` | Edge → Host | JSON/UDP | Telemetry (heap size, CPU load, servo angles) |
+
+> **Network:** The ESP32 advertises itself as a SoftAP named `Edgar_AP` at `192.168.4.1` and responds to mDNS as `animatronic-head.local`. No hardcoded IPs needed on the host side.
+
+---
+
+## 🚀 Quick Start
 
 ### Prerequisites (Install Once)
 
 #### A. PlatformIO CLI (Edge firmware toolchain)
 ```bash
-# Install PlatformIO Core CLI (if not already installed)
 pip install platformio
-
-# Or if using VSCode, install the PlatformIO IDE extension instead
 ```
 
 #### B. uv Package Manager (Host Python toolchain)
 ```bash
-# Install uv (Astral's fast Python package manager)
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
 #### C. Ollama (Local LLM runtime)
 ```bash
-# Install Ollama for macOS
-brew install ollama
+brew install ollama       # macOS
+# Or visit https://ollama.com for other platforms
 ```
 
 #### D. Python 3.11
 ```bash
-# The host requires exactly Python 3.11 (for PyTorch/TTS compatibility)
-# uv will manage this automatically, but ensure 3.11 is available:
-uv python install 3.11
+uv python install 3.11   # uv manages this automatically
 ```
 
 ---
 
 ### Step 1: Start Ollama and Pull the LLM Model
 
-Open **Terminal 1** — this stays running in the background.
-
+**Terminal 1** — keeps running in the background:
 ```bash
-# Start the Ollama server (keeps running in the background)
 ollama serve
 ```
 
-Open **Terminal 2** (or a new tab) — pull the model once, then this terminal is free.
-
+**Terminal 2** — pull the model (one-time ~2 GB download):
 ```bash
-# Pull the LLM model (only needed the first time, ~2GB download)
 ollama pull llama3.2
-
-# Verify it's available
-ollama list
+ollama list               # Verify llama3.2 appears
 ```
-
-You should see `llama3.2` in the output. Keep Ollama running in Terminal 1.
 
 ---
 
-### Step 2: Flash the ESP32 Firmware and Power Up Safely
+### Step 2: Flash the ESP32 Firmware
 
-**⚠️ CRITICAL SAFETY SEQUENCE:** 
-Never flash the ESP32 while the servos are actively pulling power, and never connect 5V to the PCA9685 while the wires are live. Follow this sequence exactly:
+> ⚠️ **CRITICAL SAFETY SEQUENCE:** Never flash the ESP32 while the servos are drawing power. Follow this sequence exactly:
 
-1. **Unplug** the 5V 10A power supply from the wall.
-2. **Plug** the ESP32 into your computer via USB (this powers the ESP32 safely at 3.3V).
+1. **Unplug** the 5V 10A power supply from the wall
+2. **Connect** the ESP32 to your computer via USB
 3. **Flash** the firmware:
    ```bash
-   # Navigate to the edge firmware directory
    cd edge
-   
-   # Compile and upload the firmware to the ESP32
    ~/.platformio/penv/bin/pio run --target upload
    ```
-4. **Power up the servos:** Once the upload says `[SUCCESS]`, plug the 5V 10A power supply back into the wall.
-5. **Monitor:** Open the serial monitor to verify the boot sequence (keep this open).
+4. **Power up servos:** Once upload says `[SUCCESS]`, plug the 5V power supply back in
+5. **Monitor** the serial output:
    ```bash
    ~/.platformio/penv/bin/pio device monitor --baud 115200
    ```
 
-**Expected serial output on successful boot:**
+**Expected boot output:**
 ```
 -----------------------------------
 SYSTEM BOOTING... (115200 Baud)
@@ -124,145 +204,241 @@ SYSTEM BOOTING... (115200 Baud)
 
 [PowerManager] Dynamic CPU scaling enabled: 80–240 MHz. Light Sleep: ON.
 [Kinematics] 60 Hz hardware timer ISR armed.
-[Network] Configuring SoftAP mode...
-```
-
-> **Network Setup:** The ESP32 acts as its own Wi-Fi Access Point (AP) called `Edgar_AP`. Simply connect your laptop directly to this network using the password `edgarpassword123`. This ensures a dedicated, low-latency connection without needing an external router, phone hotspot, or internet access.
-
-After the AP starts, the serial monitor should show:
-```
-[Network] ═══════════════════════════════════════
-[Network]  SoftAP ACTIVE
-[Network]  SSID     : Edgar_AP
-[Network]  Password : edgarpassword123
-[Network]  AP IP    : 192.168.4.1
-[Network]  Subnet   : 255.255.255.0
-[Network] ═══════════════════════════════════════
-
+[Network] SoftAP ACTIVE
+[Network]   SSID     : Edgar_AP
+[Network]   Password : edgarpassword123
+[Network]   AP IP    : 192.168.4.1
 [Network] mDNS responder started: animatronic-head.local
-[Network] Listening on UDP port 4210
 Starting Staggered Boot Sequence...
-Initializing Servo Channel 3...
-Initializing Servo Channel 0...
-...
 Staggered Boot Complete. System Ready.
 ```
-
-> **Important:** Keep this serial monitor terminal open. It will show all system events in real time.
 
 ---
 
 ### Step 3: Install Host Python Dependencies
 
-Open **Terminal 3** — this is where the Host AI pipeline will run.
-
+**Terminal 3:**
 ```bash
-# Navigate to the host directory
 cd host
-
-# Install all Python dependencies (first time takes a few minutes)
 uv sync
 ```
 
-This will create a `.venv/` virtual environment and install all packages listed in `pyproject.toml`, including:
-- `openai-whisper` (Speech-to-Text)
-- `tts` (Coqui XTTS v2 — Text-to-Speech with voice cloning)
-- `torch` / `torchaudio` (PyTorch for ML inference)
-- `langchain` / `langgraph` (Cognitive AI pipeline)
-- `langchain-ollama` (Ollama LLM integration)
+This creates a `.venv/` and installs all packages from `pyproject.toml`:
+- `openai-whisper` — Speech-to-Text
+- `tts` — Coqui XTTS v2 (voice cloning)
+- `torch` / `torchaudio` — ML inference
+- `langchain` / `langgraph` — Cognitive pipeline
+- `langchain-ollama` — Ollama LLM integration
 
 ---
 
-### Step 4: Connecting the Network (Anywhere!)
+### Step 4: Connect to the Network
 
-The system is designed for maximum portability and runs without requiring an internet connection or external routers. The ESP32 is configured to act as a **Wi-Fi Access Point (SoftAP)** instead of relying on a phone hotspot or local network.
+1. Open your laptop's Wi-Fi settings
+2. Connect to **`Edgar_AP`** (password: `edgarpassword123`)
+3. That's it — your laptop is now on a dedicated, low-latency link to the ESP32
 
-This setup eliminates the constraint of needing a cellular connection on your phone and bypasses public Wi-Fi client isolation issues entirely. You can connect and run the system from anywhere—whether in a university lab, at a park, or on an airplane.
-
-**How to Connect:**
-1. Open your laptop's Wi-Fi menu.
-2. Look for the network called **`Edgar_AP`**.
-3. Connect using the password **`edgarpassword123`**.
-4. That's it! Your laptop is now directly communicating with the ESP32 over a dedicated, low-latency UDP link.
-
-Now, just run the host script! It will seamlessly communicate with the ESP32 without any manual `export ESP32_IP` commands needed, as the ESP32 uses a static IP (`192.168.4.1`) and mDNS.
+> This eliminates dependency on routers, phone hotspots, or internet. Run the system anywhere — lab, park, or airplane.
 
 ---
 
 ### Step 5: Start the Host AI Pipeline
 
-In Terminal 3 (still in the `host/` directory):
-
 ```bash
-# Run the full cognitive pipeline
+cd host
 uv run python main.py
 ```
 
-#### 🧠 Wiping AI Memory (Context Pollution)
-The Host AI pipeline uses a local SQLite database (`data/memory.db`) to remember conversation history between runs. If the AI begins acting strangely (e.g., ignoring physical commands or overusing specific words like "mortal" because it's copying its past behavior), its context has become polluted. 
-To wipe its memory and force a fresh start with clean instructions, use the `--wipe` flag:
+**Wiping AI Memory:** If the AI starts acting strangely (repeating phrases, ignoring commands), its conversation context may be polluted. Wipe it:
 ```bash
 uv run python main.py --wipe
 ```
 
-**Expected startup output:**
+**Expected startup:**
 ```
 Loading Silero VAD...
-Silero VAD loaded.
 Loading Whisper model: base.en on device: mps
-Whisper model loaded successfully.
-Preloading XTTS model to eliminate first-time latency...
-Loading XTTS v2 on device: mps...
-XTTS v2 loaded successfully.
+Preloading XTTS model...
 Starting Cognitive Orchestrator...
 UDPVADBridge started. Rate: 16000Hz
-STT Worker started. Waiting for speech segments...
-LLM Worker started. Beginning autonomous loop...
 Graph entered LISTENING state.
 ```
 
-> **First-time model downloads:** Whisper, Silero VAD, and XTTS v2 models will be downloaded automatically on the first run (~3GB total). Subsequent runs load from cache.
+> **First run:** Whisper, Silero VAD, and TTS models download automatically (~3 GB). Subsequent runs load from cache.
 
 ---
 
-### Step 6: Talk to the Head!
+### Step 6: Talk to EDGAR!
 
-The system is now running. The full data flow is:
+The full data flow is now active:
 
 ```
 You speak → INMP441 mic (ESP32) → UDP → Host
   → Silero VAD (speech segmentation)
   → Whisper STT (speech-to-text)
-  → Ollama llama3.2 (LLM reasoning + emotion)
-  → XTTS v2 (text-to-speech with voice cloning)
+  → Ollama Llama 3.2 (reasoning + emotion inference)
+  → Kokoro / XTTS v2 (text-to-speech with voice cloning)
   → UDP → MAX98357A speaker (ESP32)
   → Lip sync (jaw moves with audio amplitude)
-  → Emotion pose (head/eyes express the emotion)
-```
-
-Speak clearly into the INMP441 microphone. You should see in the Host terminal:
-```
-Speech started. Publishing INTERRUPT event.
-Speech segment emitted (25600 bytes)
-USER SAID: Hello, who are you?
-XTTS generating sentence: I am the haunted skull...
-Sent TTS_COMPLETE to ESP32.
-```
-
-And on the ESP32 serial monitor:
-```
-[Dispatcher] Phase Update: SPEAKING
-[Dispatcher] Executing Pose: HAPPY
-[Dispatcher] TTS_COMPLETE received. State → IDLE_LISTENING.
+  → Emotion pose (head/eyes express the inferred emotion)
 ```
 
 ---
 
-## 🛑 Stopping the System
+## 🧠 AI Pipeline
 
-1. **Host:** Press `Ctrl+C` in Terminal 3 (the `main.py` process).
-2. **Ollama:** Press `Ctrl+C` in Terminal 1 (the `ollama serve` process).
-3. **ESP32:** Simply unplug USB power. Or press the RST button on the board.
+```mermaid
+stateDiagram-v2
+    [*] --> LISTENING
+    LISTENING --> THINKING: Speech detected (VAD)
+    THINKING --> SPEAKING: LLM response ready
+    SPEAKING --> LISTENING: TTS complete
+    LISTENING --> LISTENING: Silence (no speech)
+
+    state THINKING {
+        STT: Whisper STT
+        LLM: Ollama Llama 3.2
+        STT --> LLM: Transcribed text
+    }
+
+    state SPEAKING {
+        TTS: Kokoro / XTTS v2
+        SERVO: Emotion Pose + Lip Sync
+        TTS --> SERVO: Audio + Intent JSON
+    }
+```
+
+The cognitive pipeline is managed by a **LangGraph** state machine with three phases:
+
+| Phase | What Happens |
+|-------|-------------|
+| **LISTENING** | Silero VAD monitors audio for speech onset. ESP32 streams mic PCM over UDP. |
+| **THINKING** | Whisper transcribes speech → Ollama generates response + emotion → JSON intent sent to ESP32. |
+| **SPEAKING** | TTS generates voice audio → streamed to ESP32 speaker. Jaw syncs to audio amplitude. Servos express emotion pose. |
+
+---
+
+## ⚙️ Protocol — Single Source of Truth
+
+All Host ↔ Edge communication is defined in a single schema:
+
+```
+protocol/
+├── schema.json              # The canonical protocol definition
+└── generate_protocol.py     # Code generator (runs as PlatformIO pre-build hook)
+```
+
+Running `generate_protocol.py` auto-generates:
+- **Python** → `host/protocol/messages.py` (Pydantic models)
+- **C++** → `edge/include/controllers/ProtocolParser.h` (ArduinoJson parser)
+
+This ensures the Host and Edge can never go out of sync.
+
+---
+
+## 🎮 3D Simulator
+
+A MuJoCo-based 3D skull simulator enables development without physical hardware:
+
+<p align="center">
+  <img src="host/simulator/screenshot_final.png" alt="MuJoCo 3D Skull Simulator" width="500">
+</p>
+
+```bash
+cd host
+uv run python simulator/run_3d_simulator.py
+```
+
+The simulator renders the skull model with all 9 servo channels mapped to the 3D mesh joints, allowing you to test emotion poses and lip-sync behavior visually.
+
+---
+
+## 📁 Project Structure
+
+```
+animatromic head/
+├── README.md                          # This file
+├── LICENSE                            # MIT License
+├── .clang-format                      # C++ code style (Google-based)
+├── .gitignore                         # Comprehensive ignore rules
+├── presentation.html                  # Interactive project presentation
+│
+├── edge/                              # 🔧 ESP32 Firmware (C++ / FreeRTOS)
+│   ├── platformio.ini                 # Build configuration
+│   ├── src/
+│   │   ├── main.cpp                   # Entry point & FreeRTOS task setup
+│   │   ├── controllers/              # Protocol dispatcher, audio, network, poses
+│   │   ├── core/                     # Power management, radar, system tasks
+│   │   ├── hardware/                 # PCA9685 I²C driver
+│   │   └── motion/                   # Kinematic engine, easing functions
+│   ├── include/                       # Header files (mirrors src/ structure)
+│   ├── audio_gen/                     # Pre-generated audio clips (.raw)
+│   ├── examples/                      # Manual CLI test utility
+│   ├── test_hardware/                 # Hardware validation test
+│   └── test_mic_standalone/           # Isolated microphone test
+│
+├── host/                              # 🧠 Python AI Host
+│   ├── main.py                        # Entry point
+│   ├── pyproject.toml                 # Dependencies & project metadata
+│   ├── uv.lock                        # Locked dependency versions
+│   ├── core/                          # Cognitive pipeline
+│   │   ├── graph.py                   # LangGraph state machine
+│   │   ├── orchestrator.py            # Pipeline orchestrator
+│   │   ├── llm_manager.py             # Ollama LLM integration
+│   │   ├── memory.py                  # SQLite conversation persistence
+│   │   └── metrics.py                 # Performance metrics
+│   ├── audio/                         # Audio pipeline
+│   │   ├── stt.py                     # Whisper speech-to-text
+│   │   ├── udp_vad_bridge.py          # UDP ↔ VAD bridge
+│   │   └── tts/                       # TTS strategies (Kokoro, XTTS, Piper, macOS)
+│   ├── adapters/                      # Hardware communication
+│   │   ├── esp32_adapter.py           # UDP command sender
+│   │   └── speaking.py                # TTS + UDP audio streaming
+│   ├── protocol/                      # Auto-generated protocol bindings
+│   ├── assets/                        # Voice reference files for cloning
+│   ├── simulator/                     # MuJoCo 3D skull simulator
+│   ├── scripts/                       # Analysis & utility scripts
+│   ├── debug/                         # Debug audio artifacts
+│   └── tests/                         # Unit, integration & E2E tests
+│
+├── protocol/                          # 📋 Protocol SSOT
+│   ├── schema.json                    # Canonical protocol definition
+│   └── generate_protocol.py           # Python + C++ code generator
+│
+├── test/                              # 🧪 System-level tests
+│   ├── live_esp32_proxy.py            # Mac-based ESP32 mock (pyaudio)
+│   └── wokwi/                         # Wokwi virtual hardware simulation
+│
+├── docs/                              # 📄 Documentation
+│   ├── requirements/                  # Software Requirements Specification
+│   ├── design/                        # Software Design Document
+│   ├── photos/                        # Build photos
+│   ├── Animatronic Skull - 2456550/   # 3D printing STL files
+│   └── *.pdf                          # ESP32 datasheets
+│
+├── .agent/                            # 🤖 AI Agent Configuration
+│   ├── rules.md                       # Architectural constraints
+│   ├── hardware_context.md            # Physical wiring reference
+│   └── skills/                        # Agent skills (compile-check, etc.)
+└── AGENT.md                           # AI-assisted development methodology
+```
+
+---
+
+## 🧹 Code Quality
+
+| Tool | Scope | Purpose |
+|------|-------|---------|
+| [**Ruff**](https://docs.astral.sh/ruff/) | Python | Linting + formatting (PEP 8, import sorting, dead code) |
+| [**clang-format**](https://clang.llvm.org/docs/ClangFormat.html) | C/C++ | Consistent code formatting (Google style, 4-space indent) |
+
+```bash
+# Lint & format Python
+cd host && uv run ruff check --fix . && uv run ruff format .
+
+# Format C/C++
+find edge/src edge/include -name "*.cpp" -o -name "*.h" | xargs clang-format -i
+```
 
 ---
 
@@ -270,24 +446,82 @@ And on the ESP32 serial monitor:
 
 | Problem | Solution |
 |---------|----------|
-| `Could not resolve...` & UDP discovery times out | Ensure your laptop is connected directly to the `Edgar_AP` Wi-Fi network. |
-| AI ignores commands or repeats phrases | Run `uv run python main.py --wipe` to clear polluted memory |
+| `Could not resolve...` / UDP discovery times out | Ensure your laptop is connected to the `Edgar_AP` Wi-Fi network |
+| AI ignores commands or repeats phrases | Run `uv run python main.py --wipe` to clear polluted conversation memory |
 | `XTTS generation failed` | Check that `host/assets/scary_voice.wav` exists (reference audio for voice cloning) |
 | `Ollama CLI not found` | Run `brew install ollama` and ensure `ollama serve` is running |
-| No audio from speaker | Check MAX98357A wiring and that GAIN pin is not grounded |
+| No audio from speaker | Check MAX98357A wiring; ensure GAIN pin is not grounded |
 | Servos jitter on boot | Normal — staggered boot takes ~4.5s to initialize all 9 servos sequentially |
 | `[PowerWDT] Entering LOW_POWER_IDLE` | System idle >60s. Speak into the mic or send a UDP packet to wake it |
-| `torch.hub.load` fails for Silero | Check internet connection; Silero VAD model downloads from GitHub on first run |
+| `torch.hub.load` fails for Silero | Silero VAD model downloads from GitHub on first run — check internet |
+| ESP32 won't connect | Reset the ESP32; verify `Edgar_AP` SSID appears in your Wi-Fi list |
 
 ---
 
 ## 📄 Documentation
-For future contributors and AI Agents, please review the following foundational documents:
-- `docs/requirements/AnimatronicHead_SRS.md` — Software Requirements Specification (The "What")
-- `docs/design/AnimatronicHead_SDD.md` — Software Design Document (The "How")
-- `docs/Implementation_Roadmap.md` — The current lifecycle tracker
-- `.agent/hardware_context.md` — Physical wiring and breadboard layout
-- `.agent/rules.md` — Strict architectural rules and constraints
+
+| Document | Description |
+|----------|-------------|
+| [`AnimatronicHead_SRS.md`](docs/requirements/AnimatronicHead_SRS.md) | Software Requirements Specification — the "What" |
+| [`AnimatronicHead_SDD.md`](docs/design/AnimatronicHead_SDD.md) | Software Design Document — the "How" |
+| [`Implementation_Roadmap.md`](docs/Implementation_Roadmap.md) | Lifecycle tracker with all completed phases |
+| [`Architecture_Improvement_Roadmap.md`](docs/Architecture_Improvement_Roadmap.md) | Architectural audit and hardening log |
+| [`.agent/hardware_context.md`](.agent/hardware_context.md) | Physical wiring and breadboard layout |
+| [`.agent/rules.md`](.agent/rules.md) | Strict architectural rules and constraints |
+| [`protocol/schema.json`](protocol/schema.json) | Canonical protocol definition (SSOT) |
+
+---
+
+## 📸 Gallery
+
+<p align="center">
+  <img src="docs/photos/IMG_7302.jpeg" alt="Front view of EDGAR" width="300">
+  <img src="docs/photos/IMG_7303.jpeg" alt="Side view of EDGAR" width="300">
+</p>
+<p align="center">
+  <img src="docs/photos/IMG_7285.jpeg" alt="Breadboard wiring" width="300">
+  <img src="docs/photos/IMG_7306.jpeg" alt="EDGAR in action" width="300">
+</p>
+<p align="center">
+  <img src="docs/photos/IMG_7017.jpeg" alt="Build progress" width="300">
+  <img src="docs/photos/IMG_6957.jpeg" alt="Component assembly" width="300">
+</p>
+
+---
+
+## 🛑 Stopping the System
+
+1. **Host:** Press `Ctrl+C` in the terminal running `main.py`
+2. **Ollama:** Press `Ctrl+C` in the terminal running `ollama serve`
+3. **ESP32:** Unplug USB power or press the RST button
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! To get started:
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/your-feature`)
+3. Read the [SRS](docs/requirements/AnimatronicHead_SRS.md) and [SDD](docs/design/AnimatronicHead_SDD.md) for context
+4. Follow the code quality standards (Ruff for Python, clang-format for C++)
+5. Commit your changes and open a Pull Request
+
+---
 
 ## 📜 License
+
 This project is licensed under the **MIT License**. See the [LICENSE](LICENSE) file for details.
+
+---
+
+## 🙏 Acknowledgments
+
+- **3D Skull Model** — [Animatronic Skull](https://www.thingiverse.com/thing:2456550) by djfx on Thingiverse (CC-BY)
+- **LLM Runtime** — [Ollama](https://ollama.com/) for seamless local LLM inference
+- **Speech-to-Text** — [OpenAI Whisper](https://github.com/openai/whisper) for accurate transcription
+- **Text-to-Speech** — [Coqui XTTS v2](https://github.com/coqui-ai/TTS) & [Kokoro](https://huggingface.co/hexgrad/Kokoro-82M) for voice cloning
+- **Voice Activity Detection** — [Silero VAD](https://github.com/snakers4/silero-vad) for speech segmentation
+- **Cognitive Framework** — [LangChain](https://www.langchain.com/) / [LangGraph](https://langchain-ai.github.io/langgraph/) for state machine orchestration
+- **Build System** — [PlatformIO](https://platformio.org/) for ESP32 firmware toolchain
+- **Package Manager** — [uv](https://docs.astral.sh/uv/) by Astral for fast Python dependency management

@@ -1,9 +1,14 @@
-#ifndef KINEMATIC_ENGINE_H
-#define KINEMATIC_ENGINE_H
+#pragma once
+
+/**
+ * @file KinematicEngine.h
+ * @brief Header for KinematicEngine.h.
+ */
+
+#include <Arduino.h>
 
 #include "core/Config.h"
 #include "motion/Easing.h"
-#include <Arduino.h>
 
 struct ServoState {
     double startAngle;
@@ -15,7 +20,7 @@ struct ServoState {
 };
 
 class KinematicEngine {
-public:
+   public:
     static KinematicEngine& getInstance() {
         static KinematicEngine instance;
         return instance;
@@ -25,15 +30,16 @@ public:
 
     void begin();
     void updateKinematics();
-    void triggerMove(const ServoConfig& config, double targetAngle, int durationMs, EasingType easingType);
+    void triggerMove(const ServoConfig& config, double targetAngle, int durationMs,
+                     EasingType easingType);
 
-private:
+   private:
     KinematicEngine();
     ServoState states[16];
     double currentAngles[16];
-    
-    // We will no longer handle noise for idle inside updateKinematics as requested
-    // Task 2.3 moves idle behaviors (saccades, blinks) to SystemTasks/PoseController
-};
 
-#endif
+    /**
+     * @brief We will no longer handle noise for idle inside updateKinematics as requested
+     * Task 2.3 moves idle behaviors (saccades, blinks) to SystemTasks/PoseController
+     */
+};

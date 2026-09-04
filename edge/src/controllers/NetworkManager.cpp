@@ -1,11 +1,17 @@
+/**
+ * @file NetworkManager.cpp
+ * @brief Implementation of NetworkManager.cpp.
+ */
 #include "controllers/NetworkManager.h"
+
 #include <ESPmDNS.h>
 #include <esp_wifi.h>
-#include "esp_task_wdt.h"
+
 #include "controllers/AudioManager.h"
+#include "esp_task_wdt.h"
 
 // ── SoftAP Configuration ──
-static const char* AP_SSID     = "Edgar_AP";
+static const char* AP_SSID = "Edgar_AP";
 static const char* AP_PASSWORD = "edgarpassword123";
 
 // Static IP configuration for the Access Point
@@ -84,8 +90,8 @@ void NetworkManager::update() {
     if (packetSize) {
         // Dynamically latch onto the Host IP on EVERY valid control packet
         AudioManager::getInstance().setHostAddress(udp.remoteIP());
-        _hostFound = true; // Stop broadcasting once host talks to us!
-        
+        _hostFound = true;  // Stop broadcasting once host talks to us!
+
         int len = udp.read(incomingPacket, sizeof(incomingPacket) - 1);
         if (len > 0) {
             incomingPacket[len] = '\0';
@@ -95,9 +101,10 @@ void NetworkManager::update() {
     }
 }
 
-bool NetworkManager::getNextMessage(String &messageOut, uint32_t timeoutMs) {
-    if (messageQueue == nullptr) return false;
-    
+bool NetworkManager::getNextMessage(String& messageOut, uint32_t timeoutMs) {
+    if (messageQueue == nullptr)
+        return false;
+
     char buffer[1024];
     // timeoutMs=0 → non-blocking poll; timeoutMs>0 → CPU-yielding block
     TickType_t ticks = (timeoutMs == 0) ? 0 : pdMS_TO_TICKS(timeoutMs);

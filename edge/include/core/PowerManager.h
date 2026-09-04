@@ -1,26 +1,36 @@
-#ifndef POWER_MANAGER_H
-#define POWER_MANAGER_H
+#pragma once
+
+/**
+ * @file PowerManager.h
+ * @brief Header for PowerManager.h.
+ */
 
 #include <Arduino.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
 
-// ============================================================
-//  Inactivity timeout before entering LOW_POWER_IDLE
-// ============================================================
-constexpr uint32_t INACTIVITY_TIMEOUT_MS = 60000UL; // 60 seconds
+/**
+ * @brief ============================================================
+ * Inactivity timeout before entering LOW_POWER_IDLE
+ * @brief ============================================================
+ */
+constexpr uint32_t INACTIVITY_TIMEOUT_MS = 60000UL;  // 60 seconds
 
-// ============================================================
-//  CPU frequency targets (MHz)
-// ============================================================
+/**
+ * @brief ============================================================
+ * CPU frequency targets (MHz)
+ * @brief ============================================================
+ */
 constexpr int CPU_FREQ_FULL = 240;
-constexpr int CPU_FREQ_LOW  = 80;
+constexpr int CPU_FREQ_LOW = 80;
 
-// ============================================================
-//  Silence detection threshold for audio-interrupt wakeup
-//  RMS value (0–32767 for 16-bit PCM).
-//  Values below this are treated as silence.
-// ============================================================
+/**
+ * @brief ============================================================
+ * Silence detection threshold for audio-interrupt wakeup
+ * RMS value (0–32767 for 16-bit PCM).
+ * Values below this are treated as silence.
+ * @brief ============================================================
+ */
 constexpr float SILENCE_RMS_THRESHOLD = 200.0f;
 
 /**
@@ -41,7 +51,7 @@ constexpr float SILENCE_RMS_THRESHOLD = 200.0f;
  * micWakeupSem semaphore when RMS exceeds SILENCE_RMS_THRESHOLD.
  */
 class PowerManager {
-public:
+   public:
     static PowerManager& getInstance() {
         static PowerManager instance;
         return instance;
@@ -68,7 +78,9 @@ public:
      */
     void enterLowPowerIdle();
 
-    bool isLowPower() const { return _isLowPower; }
+    bool isLowPower() const {
+        return _isLowPower;
+    }
 
     /**
      * Semaphore given by the Audio ISR when it detects audio above the
@@ -78,10 +90,8 @@ public:
      */
     SemaphoreHandle_t micWakeupSem = nullptr;
 
-private:
+   private:
     PowerManager() {}
     bool _isLowPower = false;
     void setCpuFrequency(int mhz);
 };
-
-#endif // POWER_MANAGER_H

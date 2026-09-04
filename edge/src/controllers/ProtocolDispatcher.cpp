@@ -1,9 +1,15 @@
+/**
+ * @file ProtocolDispatcher.cpp
+ * @brief Implementation of ProtocolDispatcher.cpp.
+ */
 #include "controllers/ProtocolDispatcher.h"
+
 #include <Arduino.h>
-#include "controllers/ProtocolParser.h"
+
 #include "controllers/AnimatronicHead.h"
-#include "controllers/NetworkManager.h"
 #include "controllers/AudioManager.h"
+#include "controllers/NetworkManager.h"
+#include "controllers/ProtocolParser.h"
 #include "core/PowerManager.h"
 #include "esp_task_wdt.h"
 
@@ -20,16 +26,16 @@
 //   2. Update activity timestamp to reset 60s inactivity timer
 //   3. Parse and dispatch the message
 // ============================================================
-void jsonParserTask(void *pvParameters) {
-    (void) pvParameters;
+void jsonParserTask(void* pvParameters) {
+    (void)pvParameters;
     String incomingJson;
     ESP_ERROR_CHECK(esp_task_wdt_add(NULL));
 
     while (true) {
         ESP_ERROR_CHECK(esp_task_wdt_reset());
 
-        AnimatronicHead& head    = AnimatronicHead::getInstance();
-        NetworkManager&  network = NetworkManager::getInstance();
+        AnimatronicHead& head = AnimatronicHead::getInstance();
+        NetworkManager& network = NetworkManager::getInstance();
 
         if (!head.isBooted()) {
             // Must manually yield while waiting for staggeredBootTask
@@ -73,9 +79,12 @@ void jsonParserTask(void *pvParameters) {
                     case MessageType::PHASE_UPDATE: {
                         const char* phase = msg.payload["conversational_phase"];
                         if (phase) {
-                            if      (strcmp(phase, "LISTENING") == 0) head.setState(SystemState::IDLE_LISTENING);
-                            else if (strcmp(phase, "SPEAKING")  == 0) head.setState(SystemState::SPEAKING_SYNCING);
-                            else if (strcmp(phase, "MOVING")    == 0) head.setState(SystemState::IDLE_LISTENING);
+                            if (strcmp(phase, "LISTENING") == 0)
+                                head.setState(SystemState::IDLE_LISTENING);
+                            else if (strcmp(phase, "SPEAKING") == 0)
+                                head.setState(SystemState::SPEAKING_SYNCING);
+                            else if (strcmp(phase, "MOVING") == 0)
+                                head.setState(SystemState::IDLE_LISTENING);
                             Serial.printf("[Dispatcher] Phase Update: %s\n", phase);
                         }
                         break;
@@ -83,7 +92,8 @@ void jsonParserTask(void *pvParameters) {
 
                     case MessageType::TTS_COMPLETE:
                         head.setState(SystemState::IDLE_LISTENING);
-                        Serial.println("[Dispatcher] TTS_COMPLETE received. State → IDLE_LISTENING.");
+                        Serial.println(
+                            "[Dispatcher] TTS_COMPLETE received. State → IDLE_LISTENING.");
                         break;
 
                     case MessageType::UNKNOWN:

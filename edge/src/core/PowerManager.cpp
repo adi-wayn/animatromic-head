@@ -1,8 +1,13 @@
+/**
+ * @file PowerManager.cpp
+ * @brief Implementation of PowerManager.cpp.
+ */
 #include "core/PowerManager.h"
+
 #include "controllers/AnimatronicHead.h"
-#include "hardware/PCA9685_Driver.h"
 #include "core/Config.h"
 #include "esp_pm.h"
+#include "hardware/PCA9685_Driver.h"
 
 // ============================================================
 //  PowerManager::begin()
@@ -22,18 +27,17 @@ void PowerManager::begin() {
     // Light Sleep is triggered automatically by FreeRTOS Tickless Idle
     // (CONFIG_FREERTOS_USE_TICKLESS_IDLE=1 in platformio.ini)
     esp_pm_config_esp32_t pm_config = {
-        .max_freq_mhz = CPU_FREQ_FULL,
-        .min_freq_mhz = CPU_FREQ_LOW,
-        .light_sleep_enable = true
-    };
+        .max_freq_mhz = CPU_FREQ_FULL, .min_freq_mhz = CPU_FREQ_LOW, .light_sleep_enable = true};
 
     esp_err_t err = esp_pm_configure(&pm_config);
     if (err == ESP_OK) {
         Serial.printf("[PowerManager] Dynamic CPU scaling enabled: %d–%d MHz. Light Sleep: ON.\n",
                       CPU_FREQ_LOW, CPU_FREQ_FULL);
     } else {
-        Serial.printf("[PowerManager] WARNING: esp_pm_configure failed: %s. "
-                      "Power management disabled.\n", esp_err_to_name(err));
+        Serial.printf(
+            "[PowerManager] WARNING: esp_pm_configure failed: %s. "
+            "Power management disabled.\n",
+            esp_err_to_name(err));
     }
 }
 
@@ -46,12 +50,14 @@ void PowerManager::begin() {
 //   - FreeRTOS Tickless Idle enters Light Sleep when all tasks blocked
 // ============================================================
 void PowerManager::enterLowPowerIdle() {
-    if (_isLowPower) return;
+    if (_isLowPower)
+        return;
     _isLowPower = true;
 
     Serial.println("[PowerManager] >>> Entering LOW_POWER_IDLE <<<");
     Serial.println("[PowerManager]     Detaching all servos (eliminating holding current).");
-    Serial.printf( "[PowerManager]     CPU will scale down to %d MHz via PM driver.\n", CPU_FREQ_LOW);
+    Serial.printf("[PowerManager]     CPU will scale down to %d MHz via PM driver.\n",
+                  CPU_FREQ_LOW);
 
     // Detach all 9 servo channels — stops PWM output, eliminates holding current
     detachServo(NECK_Y.channel);
@@ -84,7 +90,7 @@ void PowerManager::enterFullPower() {
     _isLowPower = false;
 
     Serial.println("[PowerManager] <<< Returning to FULL_ACTIVE >>>");
-    Serial.printf( "[PowerManager]     CPU scaling back to %d MHz.\n", CPU_FREQ_FULL);
+    Serial.printf("[PowerManager]     CPU scaling back to %d MHz.\n", CPU_FREQ_FULL);
 
     AnimatronicHead::getInstance().setState(SystemState::IDLE_LISTENING);
     AnimatronicHead::getInstance().updateActivityTimestamp();

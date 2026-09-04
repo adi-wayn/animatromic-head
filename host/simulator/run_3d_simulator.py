@@ -1,16 +1,19 @@
+"""Module for run_3d_simulator.py."""
+
+import json
+import os
+import socket
+import sys
+import threading
+
 import mujoco
 import mujoco.viewer
-import time
-import socket
-import json
-import threading
-import sys
-import os
 
 UDP_IP = "127.0.0.1"
 UDP_PORT = 4210
 
 target_jaw_angle = 0.0
+
 
 def udp_listener():
     global target_jaw_angle
@@ -24,19 +27,20 @@ def udp_listener():
 
     while True:
         try:
-            data, addr = sock.recvfrom(1024)
-            msg = json.loads(data.decode('utf-8'))
-            
-            if msg.get('type') == 'INTENT':
-                payload = msg.get('payload', {})
-                emotion = payload.get('emotion_primary')
-                intensity = payload.get('intensity_level', 0.0)
-                
+            data, _addr = sock.recvfrom(1024)
+            msg = json.loads(data.decode("utf-8"))
+
+            if msg.get("type") == "INTENT":
+                payload = msg.get("payload", {})
+                emotion = payload.get("emotion_primary")
+                intensity = payload.get("intensity_level", 0.0)
+
                 if emotion == "JAW":
-                    # intensity is usually between 0.0 and 1.0. 
-                    target_jaw_angle = intensity * 0.5 
-        except Exception as e:
+                    # intensity is usually between 0.0 and 1.0.
+                    target_jaw_angle = intensity * 0.5
+        except Exception:
             pass
+
 
 def control_callback(model, data):
     global target_jaw_angle
@@ -46,17 +50,18 @@ def control_callback(model, data):
             target_jaw_angle *= 0.8
         else:
             target_jaw_angle = 0.0
-            
+
         motor_id = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_ACTUATOR, "jaw_motor")
         if motor_id != -1:
             data.ctrl[motor_id] = target_jaw_angle
     except Exception:
         pass
 
+
 def main():
     print("Loading MuJoCo...")
     xml_path = os.path.join(os.path.dirname(__file__), "skull.xml")
-    
+
     try:
         model = mujoco.MjModel.from_xml_path(xml_path)
         data = mujoco.MjData(model)
@@ -72,9 +77,10 @@ def main():
     mujoco.set_mjcb_control(control_callback)
 
     print("Simulator running. Close the window to exit.")
-    
+
     # Run the viewer blocking (works natively on macOS)
     mujoco.viewer.launch(model, data)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

@@ -1,5 +1,7 @@
-import open3d as o3d
+"""Module for split_face.py."""
+
 import numpy as np
+import open3d as o3d
 
 print("Loading face model...")
 mesh = o3d.io.read_triangle_mesh("canonical_face_model.obj")
@@ -17,7 +19,7 @@ print(f"Bounds: min={min_bound}, max={max_bound}")
 # Let's split based on Y coordinate (vertical).
 # Assuming Y is up, if not we'll check bounds.
 y_min, y_max = min_bound[1], max_bound[1]
-split_y = y_min + (y_max - y_min) * 0.35 # Bottom 35% is jaw
+split_y = y_min + (y_max - y_min) * 0.35  # Bottom 35% is jaw
 
 # Find which triangles belong to the upper face and which to the jaw
 upper_triangles = []

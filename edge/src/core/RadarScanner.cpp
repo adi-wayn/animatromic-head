@@ -1,26 +1,34 @@
+/**
+ * @file RadarScanner.cpp
+ * @brief Implementation of RadarScanner.cpp.
+ */
 #include "core/RadarScanner.h"
-#include "core/Config.h"
-#include "core/PowerManager.h"
-#include "motion/KinematicEngine.h"
-#include "hardware/PCA9685_Driver.h"
-#include "controllers/AnimatronicHead.h"
+
 #include <math.h>
+
+#include "controllers/AnimatronicHead.h"
 #include "controllers/AudioManager.h"
 #include "controllers/PoseController.h"
+#include "core/Config.h"
+#include "core/PowerManager.h"
 #include "core/VoiceClips.h"
+#include "hardware/PCA9685_Driver.h"
+#include "motion/KinematicEngine.h"
 
-
-RadarScanner::RadarScanner() 
-    : movingForward(true), currentAngle(MIN_ANGLE), 
-      state(RadarState::SWEEPING), stateStartTime(0), tentativeAngle(90.0), lastLogTime(0), isPaused(false) {
-}
+RadarScanner::RadarScanner()
+    : movingForward(true),
+      currentAngle(MIN_ANGLE),
+      state(RadarState::SWEEPING),
+      stateStartTime(0),
+      tentativeAngle(90.0),
+      lastLogTime(0),
+      isPaused(false) {}
 
 void RadarScanner::begin() {
     pinMode(RADAR_TRIG_PIN, OUTPUT);
     pinMode(RADAR_ECHO_PIN, INPUT);
     digitalWrite(RADAR_TRIG_PIN, LOW);
 }
-
 
 void RadarScanner::setPaused(bool paused) {
     isPaused = paused;
@@ -52,43 +60,48 @@ double RadarScanner::calculateHeadPanAngle(float distanceCm, double radarAngle) 
 }
 
 void RadarScanner::update() {
-    if (isPaused) return;
+    if (isPaused)
+        return;
 
     safeSetServoAngle(RADAR_SERVO_CHANNEL, currentAngle, 0.0, 180.0);
-    vTaskDelay(pdMS_TO_TICKS(15)); 
+    vTaskDelay(pdMS_TO_TICKS(15));
 
     float distanceCm = getDistanceCm();
     uint32_t now = millis();
 
     // Print a log every 2 seconds to give visibility!
     if (now - lastLogTime >= 2000) {
-        const char* stateStr = (state == RadarState::SWEEPING) ? "SWEEPING" :
-                               (state == RadarState::VERIFYING_TARGET) ? "VERIFYING" : "COOLDOWN";
-        Serial.printf("[Radar] State: %s | Angle: %.1f° | Dist: %.1f cm\n", stateStr, currentAngle, distanceCm);
+        const char* stateStr = (state == RadarState::SWEEPING)           ? "SWEEPING"
+                               : (state == RadarState::VERIFYING_TARGET) ? "VERIFYING"
+                                                                         : "COOLDOWN";
+        Serial.printf("[Radar] State: %s | Angle: %.1f° | Dist: %.1f cm\n", stateStr, currentAngle,
+                      distanceCm);
         lastLogTime = now;
     }
 
-    switch(state) {
+    switch (state) {
         case RadarState::SWEEPING:
             if (distanceCm > 0.0 && distanceCm <= RADAR_THRESHOLD_CM) {
                 state = RadarState::VERIFYING_TARGET;
                 stateStartTime = now;
                 tentativeAngle = calculateHeadPanAngle(distanceCm, currentAngle);
-                Serial.printf("[Radar] Target spotted at %.1f cm (Radar %.1f°). Pausing to verify...\n", distanceCm, currentAngle);
+                Serial.printf(
+                    "[Radar] Target spotted at %.1f cm (Radar %.1f°). Pausing to verify...\n",
+                    distanceCm, currentAngle);
             } else {
                 if (movingForward) {
                     currentAngle += SWEEP_STEP;
-                    if (currentAngle >= MAX_ANGLE) { 
-                        currentAngle = MAX_ANGLE; 
-                        movingForward = false; 
-                        vTaskDelay(pdMS_TO_TICKS(200)); 
+                    if (currentAngle >= MAX_ANGLE) {
+                        currentAngle = MAX_ANGLE;
+                        movingForward = false;
+                        vTaskDelay(pdMS_TO_TICKS(200));
                     }
                 } else {
                     currentAngle -= SWEEP_STEP;
-                    if (currentAngle <= MIN_ANGLE) { 
-                        currentAngle = MIN_ANGLE; 
-                        movingForward = true; 
-                        vTaskDelay(pdMS_TO_TICKS(200)); 
+                    if (currentAngle <= MIN_ANGLE) {
+                        currentAngle = MIN_ANGLE;
+                        movingForward = true;
+                        vTaskDelay(pdMS_TO_TICKS(200));
                     }
                 }
             }
@@ -97,8 +110,9 @@ void RadarScanner::update() {
         case RadarState::VERIFYING_TARGET:
             if (distanceCm > 0.0 && distanceCm <= RADAR_THRESHOLD_CM) {
                 if (now - stateStartTime >= 2000) {
-                    Serial.printf("[Radar] Target verified! Sending NECK_ONE to %.1f°\n", tentativeAngle);
-                    
+                    Serial.printf("[Radar] Target verified! Sending NECK_ONE to %.1f°\n",
+                                  tentativeAngle);
+
                     if (PowerManager::getInstance().isLowPower()) {
                         Serial.println("[Radar] Waking up Animatronic Head!");
                         PowerManager::getInstance().enterFullPower();
@@ -118,7 +132,7 @@ void RadarScanner::update() {
                     // Pick a random phrase and play it!
                     SystemState oldState = AnimatronicHead::getInstance().getState();
                     AnimatronicHead::getInstance().setState(SystemState::SPEAKING_SYNCING);
-                    
+
                     int clipIndex = esp_random() % 3;
                     if (clipIndex == 0) {
                         AudioManager::getInstance().playLocalClip(voice1_raw, voice1_raw_len);
@@ -127,11 +141,11 @@ void RadarScanner::update() {
                     } else {
                         AudioManager::getInstance().playLocalClip(voice3_raw, voice3_raw_len);
                     }
-                    
+
                     AnimatronicHead::getInstance().setState(oldState);
 
                     state = RadarState::COOLDOWN;
-                    stateStartTime = millis(); // Reset now because playLocalClip takes ~1 second
+                    stateStartTime = millis();  // Reset now because playLocalClip takes ~1 second
                 }
             } else {
                 Serial.println("[Radar] Target lost during verification. Resuming sweep.");
@@ -142,9 +156,9 @@ void RadarScanner::update() {
         case RadarState::COOLDOWN:
             if (distanceCm > 0.0 && distanceCm <= RADAR_THRESHOLD_CM) {
                 AnimatronicHead::getInstance().updateActivityTimestamp();
-                stateStartTime = now; 
+                stateStartTime = now;
             }
-            
+
             if (now - stateStartTime >= 3000) {
                 Serial.println("[Radar] Target left. Cooldown finished. Resuming sweep.");
                 state = RadarState::SWEEPING;

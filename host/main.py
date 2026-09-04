@@ -1,13 +1,22 @@
+"""Main entry point for the Animatronic Head host application."""
+
+import argparse
 import asyncio
 import sys
-import argparse
+
 from loguru import logger
-from core.orchestrator import CognitiveOrchestrator
+
 from core.memory import wipe_memory
+from core.orchestrator import CognitiveOrchestrator
+
 
 async def main():
     parser = argparse.ArgumentParser(description="Animatronic Head Host")
-    parser.add_argument("--wipe", action="store_true", help="Wipe the AI's conversation memory before starting.")
+    parser.add_argument(
+        "--wipe",
+        action="store_true",
+        help="Wipe the AI's conversation memory before starting.",
+    )
     args = parser.parse_args()
 
     if args.wipe:
@@ -17,12 +26,17 @@ async def main():
     orchestrator = CognitiveOrchestrator()
     await orchestrator.start()
 
+
 if __name__ == "__main__":
     # Configure Loguru: Output to stdout with color, and to a rotating log file
-    logger.remove() # Remove default handler
-    logger.add(sys.stdout, colorize=True, format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>")
+    logger.remove()  # Remove default handler
+    logger.add(
+        sys.stdout,
+        colorize=True,
+        format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>",
+    )
     logger.add("logs/host_{time}.log", rotation="10 MB", retention="10 days", level="DEBUG")
-    
+
     try:
         asyncio.run(main())
     except KeyboardInterrupt:

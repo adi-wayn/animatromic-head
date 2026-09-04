@@ -1,30 +1,31 @@
-from abc import ABC, abstractmethod
+"""Base strategy interface for TTS engines."""
+
 import logging
+from abc import ABC, abstractmethod
 
 logger = logging.getLogger(__name__)
+
 
 class TTSStrategy(ABC):
     """
     Strategy Pattern: Abstract base class for Text-to-Speech generation.
     """
+
     @abstractmethod
     def synthesize(self, text: str) -> bytes:
         """
         Synthesizes speech from text.
         Returns raw PCM audio bytes.
         """
-        pass
-        
+
     @abstractmethod
     def synthesize_stream(self, text: str):
         """
         Yields raw PCM audio bytes in chunks as they are generated.
         """
-        pass
-        
+
     @abstractmethod
     def stop(self):
         """
         Stops any ongoing synthesis (used during interruption).
         """
-        pass

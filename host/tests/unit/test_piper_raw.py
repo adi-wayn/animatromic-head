@@ -1,13 +1,14 @@
-from piper.voice import PiperVoice
+import io
 import wave
+
+from piper.voice import PiperVoice
 
 model_path = "models/en_GB-alan-medium.onnx"
 voice = PiperVoice.load(model_path)
 print(f"Sample Rate: {voice.config.sample_rate}")
 
-import io
 wav_io = io.BytesIO()
-with wave.open(wav_io, 'wb') as wav_file:
+with wave.open(wav_io, "wb") as wav_file:
     wav_file.setnchannels(1)
     wav_file.setsampwidth(2)
     wav_file.setframerate(voice.config.sample_rate)

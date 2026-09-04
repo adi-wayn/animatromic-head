@@ -1,5 +1,10 @@
-#ifndef PROTOCOL_PARSER_H
-#define PROTOCOL_PARSER_H
+// NOTE: This file is auto-generated. Do not edit manually.
+#pragma once
+
+/**
+ * @file ProtocolParser.h
+ * @brief Header for ProtocolParser.h.
+ */
 
 #include <Arduino.h>
 #include <ArduinoJson.h>
@@ -33,7 +38,7 @@ struct ParsedMessage {
 };
 
 class ProtocolParser {
-public:
+   public:
     static ParsedMessage parse(const String& json) {
         ParsedMessage result;
         result.type = MessageType::UNKNOWN;
@@ -52,12 +57,22 @@ public:
         }
 
         String typeStr = doc["type"].as<String>();
-        if (typeStr == "INTENT") { result.type = MessageType::INTENT; }
-        if (typeStr == "PHASE_UPDATE") { result.type = MessageType::PHASE_UPDATE; }
-        if (typeStr == "EMERGENCY_STOP") { result.type = MessageType::EMERGENCY_STOP; }
-        if (typeStr == "TTS_COMPLETE") { result.type = MessageType::TTS_COMPLETE; }
-        if (typeStr == "TELEMETRY") { result.type = MessageType::TELEMETRY; }
-        
+        if (typeStr == "INTENT") {
+            result.type = MessageType::INTENT;
+        }
+        if (typeStr == "PHASE_UPDATE") {
+            result.type = MessageType::PHASE_UPDATE;
+        }
+        if (typeStr == "EMERGENCY_STOP") {
+            result.type = MessageType::EMERGENCY_STOP;
+        }
+        if (typeStr == "TTS_COMPLETE") {
+            result.type = MessageType::TTS_COMPLETE;
+        }
+        if (typeStr == "TELEMETRY") {
+            result.type = MessageType::TELEMETRY;
+        }
+
         if (doc["payload"].is<JsonObject>()) {
             result.payload = doc["payload"];
         }
@@ -65,5 +80,3 @@ public:
         return result;
     }
 };
-
-#endif

@@ -1,11 +1,16 @@
-#ifndef POSE_CONTROLLER_H
-#define POSE_CONTROLLER_H
+#pragma once
 
-#include "motion/Easing.h"
+/**
+ * @file PoseController.h
+ * @brief Header for PoseController.h.
+ */
+
 #include <stdint.h>
 
+#include "motion/Easing.h"
+
 class PoseController {
-public:
+   public:
     static PoseController& getInstance() {
         static PoseController instance;
         return instance;
@@ -14,17 +19,23 @@ public:
     void operator=(const PoseController&) = delete;
 
     void executePose(const char* intent);
-    
-    // Organic micro-movements (saccades)
+
+    /**
+     * @brief Organic micro-movements (saccades)
+     */
     void generateOrganicSaccade(uint32_t timeMs);
-    
-    // Real-time lip sync driven by audio amplitude (0.0 to 1.0)
+
+    /**
+     * @brief Real-time lip sync driven by audio amplitude (0.0 to 1.0)
+     */
     void syncJawToAmplitude(float intensity);
-    
-private:
+
+   private:
     PoseController() {}
-    
-    // Primitives
+
+    /**
+     * @brief Primitives
+     */
     void lookLeft(int durationMs = 500, EasingType easing = EASE_IN_OUT_SINE);
     void lookRight(int durationMs = 500, EasingType easing = EASE_IN_OUT_SINE);
     void lookUp(int durationMs = 500, EasingType easing = EASE_IN_OUT_SINE);
@@ -41,7 +52,9 @@ private:
     void jawLeft(int durationMs = 300, EasingType easing = EASE_IN_OUT_SINE);
     void jawRight(int durationMs = 300, EasingType easing = EASE_IN_OUT_SINE);
 
-    // Macros
+    /**
+     * @brief Macros
+     */
     void expressHappy();
     void expressSad();
     void expressThinking();
@@ -49,9 +62,10 @@ private:
     void expressSurprised();
     void resetToNeutral();
 
-    
     // --- Strict Atomic Building Blocks (Base Primitives) ---
-    // Only these functions are permitted to communicate with KinematicEngine.
+    /**
+     * @brief Only these functions are permitted to communicate with KinematicEngine.
+     */
     void moveNeckPan(double angle, int durationMs, EasingType easing);
     void moveNeckTilt(double angle, int durationMs, EasingType easing);
     void moveNeckRoll(double angle, int durationMs, EasingType easing);
@@ -60,7 +74,5 @@ private:
     void moveEyelidLeft(double angle, int durationMs, EasingType easing);
     void moveEyelidRight(double angle, int durationMs, EasingType easing);
     void moveJawUD(double angle, int durationMs, EasingType easing);
-    void moveJawLR(double targetAngle, int durationMs, EasingType easing); // Clamps internally
+    void moveJawLR(double targetAngle, int durationMs, EasingType easing);  // Clamps internally
 };
-
-#endif

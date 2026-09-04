@@ -1,12 +1,15 @@
+"""Memory management for the conversational agent."""
+
 import logging
+
 from langchain_core.messages import BaseMessage, trim_messages
 
 logger = logging.getLogger(__name__)
 
+
 class MemoryManager:
-    """
-    Handles context window management and LRU caching for LLM state.
-    """
+    """Handles context window management and LRU caching for LLM state."""
+
     @staticmethod
     def trim_context(messages: list[BaseMessage]) -> list[BaseMessage]:
         """
@@ -15,9 +18,9 @@ class MemoryManager:
         """
         trimmed = trim_messages(
             messages,
-            max_tokens=30, # Keeps the last 30 messages (approx 15 conversational turns)
+            max_tokens=30,  # Keeps the last 30 messages (approx 15 conversational turns)
             token_counter=len,
             strategy="last",
-            include_system=True
+            include_system=True,
         )
         return trimmed

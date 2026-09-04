@@ -1,6 +1,8 @@
-#ifndef PROTOCOL_DISPATCHER_H
-#define PROTOCOL_DISPATCHER_H
+#pragma once
 
-void jsonParserTask(void *pvParameters);
+/**
+ * @file ProtocolDispatcher.h
+ * @brief Header for ProtocolDispatcher.h.
+ */
 
-#endif
+void jsonParserTask(void* pvParameters);

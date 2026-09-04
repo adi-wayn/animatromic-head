@@ -1,5 +1,8 @@
-import open3d as o3d
+"""Module for merge_stls.py."""
+
 import os
+
+import open3d as o3d
 
 base_dir = "../../docs/Animatronic Skull - 2456550/files/"
 left_path = os.path.join(base_dir, "LeftSkull.stl")
